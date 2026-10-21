@@ -5,12 +5,12 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyCwfyi3BAia9uaRJghgc8GJ1xG2x-n7mRg',
-  authDomain: 'casa-da-crianca-estoque.firebaseapp.com',
-  projectId: 'casa-da-crianca-estoque',
-  storageBucket: 'casa-da-crianca-estoque.firebasestorage.app',
-  messagingSenderId: '248660348216',
-  appId: '1:248660348216:web:beb4b7585d30051b0d85cd',
+  apiKey: 'AIzaSyDUtEc22aRdGsvMW812TEV3UojzrpTM1jc',
+  authDomain: 'casa-da-crianca-estoque-2.firebaseapp.com',
+  projectId: 'casa-da-crianca-estoque-2',
+  storageBucket: 'casa-da-crianca-estoque-2.firebasestorage.app',
+  messagingSenderId: '678876397395',
+  appId: '1:678876397395:web:68ab870548d117254faba6',
 };
 
 const app = initializeApp(firebaseConfig);
