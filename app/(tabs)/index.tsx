@@ -18,6 +18,7 @@ import { FadeDown, FadeIn } from '../../components/AnimEntrance';
 import { Produto, Lote, NivelRisco } from '../../services/tipos';
 import { subscribeToProdutos } from '../../services/produtosService';
 import { subscribeAllLotes } from '../../services/lotesService';
+import { subscribeToDoacoes } from '../../services/doacoesService';
 import { getRiscoProduto, diasParaVencer, aplicarRiscoMulti } from '../../services/risco';
 
 const RISCO_ORDEM: Record<string, number> = { risco_alto: 0, atencao: 1, seguro: 2 };
@@ -175,6 +176,7 @@ export default function InicioScreen() {
   const [carregando, setCarregando] = useState(true);
   const [footerExpandido, setFooterExpandido] = useState(true);
   const [footerHeight, setFooterHeight] = useState(220);
+  const [doacoesPendentes, setDoacoesPendentes] = useState(0);
   const recebido = useRef({ produtos: false, lotes: false });
 
   function marcarRecebido(chave: 'produtos' | 'lotes') {
@@ -187,6 +189,15 @@ export default function InicioScreen() {
     const u1 = subscribeToProdutos((d) => { setProdutos(d); marcarRecebido('produtos'); });
     const u2 = subscribeAllLotes((d)   => { setLotes(d);    marcarRecebido('lotes'); });
     return () => { u1(); u2(); clearTimeout(timer); };
+  }, []);
+
+  // Sugestões de doação aguardando análise (aviso para a equipe).
+  useEffect(() => {
+    const unsub = subscribeToDoacoes(
+      (d) => setDoacoesPendentes(d.filter((x) => x.status === 'pendente').length),
+      () => setDoacoesPendentes(0)
+    );
+    return unsub;
   }, []);
 
   const totalLotes = lotes.length;
@@ -247,6 +258,43 @@ export default function InicioScreen() {
             <Text style={styles.iaEmoji}>🧠</Text>
           </View>
         </View>
+
+        {/* ── Sugestões de doação (área do doador) ── */}
+        <FadeIn duration={500}>
+          <TouchableOpacity
+            style={[
+              styles.doacoesCard,
+              doacoesPendentes > 0
+                ? { backgroundColor: colors.primaryLight, borderColor: colors.primary }
+                : { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            onPress={() => router.push('/doacoes')}
+            activeOpacity={0.8}
+            accessibilityLabel={
+              doacoesPendentes > 0
+                ? `${doacoesPendentes} sugestões de doação aguardando análise. Toque para ver.`
+                : 'Sugestões de doação. Toque para ver.'
+            }
+          >
+            <Text style={styles.doacoesIcone}>📬</Text>
+            <View style={styles.doacoesTextos}>
+              <Text style={[styles.doacoesTitulo, { color: doacoesPendentes > 0 ? colors.primaryDark : colors.textPrimary }]}>
+                Sugestões de doação
+              </Text>
+              <Text style={[styles.doacoesDescricao, { color: doacoesPendentes > 0 ? colors.primaryDark : colors.textSecondary }]}>
+                {doacoesPendentes === 0
+                  ? 'Nenhuma sugestão aguardando análise'
+                  : `${doacoesPendentes} ${doacoesPendentes === 1 ? 'sugestão aguardando' : 'sugestões aguardando'} análise`}
+              </Text>
+            </View>
+            {doacoesPendentes > 0 && (
+              <View style={[styles.doacoesBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.doacoesBadgeTexto}>{doacoesPendentes}</Text>
+              </View>
+            )}
+            <Text style={[styles.alertaSeta, { color: colors.textDisabled }]}>›</Text>
+          </TouchableOpacity>
+        </FadeIn>
 
         {/* ── Alerta de Desperdício ── */}
         {totalLotes > 0 && (
@@ -421,6 +469,15 @@ const styles = StyleSheet.create({
   alertaTitulo:    { fontSize: 15, fontWeight: '800' },
   alertaDescricao: { fontSize: 13, lineHeight: 18 },
   alertaSeta:      { fontSize: 22, fontWeight: '700' },
+
+  // Sugestões de doação
+  doacoesCard:      { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1.5, padding: 16, marginBottom: 16 },
+  doacoesIcone:     { fontSize: 26 },
+  doacoesTextos:    { flex: 1, gap: 3 },
+  doacoesTitulo:    { fontSize: 15, fontWeight: '800' },
+  doacoesDescricao: { fontSize: 13, lineHeight: 18 },
+  doacoesBadge:     { minWidth: 26, height: 26, borderRadius: 13, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
+  doacoesBadgeTexto:{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
 
   secaoTitulo: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, marginBottom: 12 },
   secaoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 28 },

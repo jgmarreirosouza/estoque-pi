@@ -89,7 +89,9 @@ function AuthGate() {
   useEffect(() => {
     if (loading) return;
     const inLogin = segments[0] === 'login';
-    if (!user && !inLogin) router.replace('/login');
+    // A área do doador é pública: acessível sem login (web e celular).
+    const inDoador = segments[0] === 'doador';
+    if (!user && !inLogin && !inDoador) router.replace('/login');
     else if (user && inLogin) router.replace('/');
   }, [user, loading, segments]);
 
@@ -161,6 +163,28 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Lista de Necessidades',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.primary,
+            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
+          }}
+        />
+        <Stack.Screen
+          name="doacoes/index"
+          options={{
+            headerShown: true,
+            title: 'Sugestões de Doação',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.primary,
+            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
+          }}
+        />
+        {/* Área do doador (pública) */}
+        <Stack.Screen name="doador/index" />
+        <Stack.Screen
+          name="doador/doar"
+          options={{
+            headerShown: true,
+            title: 'Sugerir doação',
             headerStyle: { backgroundColor: colors.surface },
             headerTintColor: colors.primary,
             headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },

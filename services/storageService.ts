@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-const CLOUD_NAME = 'dffc6u8z0';
+const CLOUD_NAME = 'aa0qtijz';
 const UPLOAD_PRESET = 'casa-da-crianca';
 const UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 

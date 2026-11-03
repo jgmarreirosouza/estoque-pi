@@ -18,19 +18,22 @@ import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../theme';
 import { SkeletonLista } from '../../components/SkeletonCard';
 import { RiskBadge } from '../../components/RiskBadge';
-import { Produto, Lote, NivelRisco } from '../../services/tipos';
+import { Produto, Lote, NivelRisco, NecessidadePublica, UrgenciaNecessidade } from '../../services/tipos';
 import { ResultadoAgrupamento } from '../../services/mlService';
 import { subscribeToProdutos, toggleOcultarNecessidades } from '../../services/produtosService';
 import { subscribeAllLotes } from '../../services/lotesService';
 import { getRiscoProduto, diasParaVencer, aplicarRiscoMulti } from '../../services/risco';
 import { getEntradasMensais } from '../../services/movimentacoesService';
 import { agruparDoacoes } from '../../services/mlService';
+import { publicarNecessidades } from '../../services/necessidadesPublicasService';
+import { mensagemErro } from '../../utils/erros';
 
 interface ItemNecessidade {
   produtoId: string;
   nome: string;
   emoji: string;
   fotoUrl?: string;
+  categoria: string;
   total: number;
   risco: NivelRisco;
   diasPiorLote: number | null;
@@ -114,6 +117,7 @@ function buildLista(
       nome: p.nome,
       emoji: p.emoji,
       fotoUrl: p.fotoUrl,
+      categoria: p.categoria,
       total,
       risco,
       diasPiorLote: dias,
@@ -255,11 +259,17 @@ export default function NecessidadesScreen() {
   const [sugestao, setSugestao] = useState<string | null>(null);
   const [carregandoSugestao, setCarregandoSugestao] = useState(true);
   const [carregando, setCarregando] = useState(true);
+  const [dadosProntos, setDadosProntos] = useState(false);
+  const [publicando, setPublicando] = useState(false);
+  const [statusPublicacao, setStatusPublicacao] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const recebido = useRef({ produtos: false, lotes: false });
 
   function marcarRecebido(chave: 'produtos' | 'lotes') {
     recebido.current[chave] = true;
-    if (recebido.current.produtos && recebido.current.lotes) setCarregando(false);
+    if (recebido.current.produtos && recebido.current.lotes) {
+      setCarregando(false);
+      setDadosProntos(true);
+    }
   }
 
   useEffect(() => {
@@ -289,6 +299,46 @@ export default function NecessidadesScreen() {
 
   const { urgentes, atencao, outros } = useMemo(() => buildLista(produtos, lotes), [produtos, lotes]);
   const total = urgentes.length + atencao.length + outros.length;
+
+  /**
+   * Publica a lista na área do doador. Só envia nome, emoji, foto, categoria e
+   * urgência: quantidades em estoque e validades continuam internas.
+   */
+  async function handlePublicar() {
+    if (publicando || !dadosProntos) return;
+    setPublicando(true);
+    setStatusPublicacao(null);
+    try {
+      const paraPublico = (i: ItemNecessidade, urgencia: UrgenciaNecessidade): NecessidadePublica => ({
+        id: i.produtoId,
+        nome: i.nome,
+        emoji: i.emoji,
+        fotoUrl: i.fotoUrl,
+        categoria: i.categoria,
+        urgencia,
+      });
+      const itens = [
+        ...urgentes.map((i) => paraPublico(i, 'urgente')),
+        ...atencao.map((i) => paraPublico(i, 'atencao')),
+        ...outros.map((i) => paraPublico(i, 'geral')),
+      ];
+      await publicarNecessidades(itens);
+      setStatusPublicacao({
+        tipo: 'ok',
+        texto:
+          itens.length === 0
+            ? 'Lista publicada: nenhum item na lista dos doadores no momento.'
+            : `Lista publicada para os doadores (${itens.length} ${itens.length === 1 ? 'item' : 'itens'}).`,
+      });
+    } catch (e) {
+      setStatusPublicacao({
+        tipo: 'erro',
+        texto: mensagemErro(e, 'Não foi possível publicar a lista. Tente novamente.'),
+      });
+    } finally {
+      setPublicando(false);
+    }
+  }
 
   async function handleWhatsApp() {
     const texto = gerarTexto(urgentes, atencao, outros, sugestao);
@@ -350,6 +400,41 @@ export default function NecessidadesScreen() {
           </View>
           <Text style={styles.whatsappSeta}>›</Text>
         </TouchableOpacity>
+
+        {/* Publicar para a área do doador */}
+        <TouchableOpacity
+          style={[styles.publicarBtn, { backgroundColor: colors.primary, opacity: publicando || !dadosProntos ? 0.6 : 1 }]}
+          onPress={handlePublicar}
+          disabled={publicando || !dadosProntos}
+          activeOpacity={0.85}
+          accessibilityLabel="Publicar a lista de necessidades para os doadores"
+        >
+          <Text style={styles.whatsappEmoji}>🌐</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.whatsappTitulo}>Publicar para os doadores</Text>
+            <Text style={styles.whatsappSub}>Atualiza a lista da área do doador</Text>
+          </View>
+          {publicando ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.whatsappSeta}>›</Text>}
+        </TouchableOpacity>
+
+        {statusPublicacao && (
+          <View
+            style={[
+              styles.statusPublicacao,
+              { backgroundColor: statusPublicacao.tipo === 'ok' ? colors.riscoSeguroLight : colors.riscoAltoLight },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusPublicacaoTexto,
+                { color: statusPublicacao.tipo === 'ok' ? colors.riscoSeguroDark : colors.riscoAltoDark },
+              ]}
+            >
+              {statusPublicacao.tipo === 'ok' ? '✅ ' : '⚠️ '}
+              {statusPublicacao.texto}
+            </Text>
+          </View>
+        )}
 
         {/* Lista vazia / carregando */}
         {carregando ? (
@@ -460,6 +545,16 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
+  publicarBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    padding: 18, borderRadius: 18, marginBottom: 10,
+    ...Platform.select({
+      ios:     { shadowColor: '#1E96C8', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+      android: { elevation: 4 },
+    }),
+  },
+  statusPublicacao:      { borderRadius: 12, padding: 12, marginBottom: 14 },
+  statusPublicacaoTexto: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
   whatsappEmoji: { fontSize: 30 },
   whatsappTitulo:{ fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   whatsappSub:   { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },

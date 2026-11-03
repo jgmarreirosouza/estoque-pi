@@ -128,7 +128,7 @@ export default function ConfiguracoesScreen() {
   const isEmailUser = user?.providerData.some((p) => p.providerId === 'password') ?? false;
   const isGoogleUser = user?.providerData.some((p) => p.providerId === 'google.com') ?? false;
   const isAnonimo = user?.isAnonymous ?? false;
-  const isDev = user?.uid === 'YqtgWYsO56R78dAdTcFzyIzSxgr1';
+  const isDev = __DEV__;
 
   const nomeExibido = (() => {
     if (isAnonimo) return 'Visitante';

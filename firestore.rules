@@ -1,0 +1,78 @@
+rules_version = '2';
+
+// Regras do Firestore — Casa da Criança
+//
+// Como publicar: Console do Firebase → Firestore Database → Regras →
+// colar este conteúdo → Publicar.
+//
+// Quem é quem:
+//   • Equipe da ONG  = conta com e-mail listado em ehEquipe() abaixo.
+//   • Doador         = qualquer pessoa SEM login (visitante do site/app).
+//
+// O que cada um pode fazer:
+//   • Doador  → LER a lista pública (`necessidades`) e CRIAR uma sugestão
+//               (`doacoes`, sempre 'pendente'). Não lê nem altera mais nada.
+//   • Equipe  → ler e escrever tudo (estoque, histórico, doações aprovadas...).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ► EDITE: coloque aqui os e-mails de quem pode administrar a ONG.
+    //   Sem isso, qualquer pessoa que criasse uma conta no app viraria "equipe"
+    //   e leria os contatos dos doadores.
+    function ehEquipe() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.token.email in [
+          'souza.joaojjg@gmail.com'
+        ];
+    }
+
+    // Lista pública de necessidades: todos leem, só a equipe publica.
+    match /necessidades/{id} {
+      allow read: if true;
+      allow write: if ehEquipe();
+    }
+
+    // Sugestões de doação: qualquer pessoa cria (validado); só a equipe lê/altera.
+    match /doacoes/{id} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'produtoId', 'nomeItem', 'emoji', 'quantidade',
+          'doadorNome', 'doadorContato', 'observacao', 'status', 'criadoEm'
+        ])
+        && request.resource.data.keys().hasAll([
+          'nomeItem', 'emoji', 'quantidade',
+          'doadorNome', 'doadorContato', 'status', 'criadoEm'
+        ])
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.nomeItem is string
+        && request.resource.data.nomeItem.size() >= 2
+        && request.resource.data.nomeItem.size() <= 80
+        && request.resource.data.emoji is string
+        && request.resource.data.emoji.size() <= 16
+        && request.resource.data.quantidade is int
+        && request.resource.data.quantidade >= 1
+        && request.resource.data.quantidade <= 9999
+        && request.resource.data.doadorNome is string
+        && request.resource.data.doadorNome.size() >= 2
+        && request.resource.data.doadorNome.size() <= 80
+        && request.resource.data.doadorContato is string
+        && request.resource.data.doadorContato.size() >= 5
+        && request.resource.data.doadorContato.size() <= 80
+        && (request.resource.data.get('produtoId', null) == null
+            || request.resource.data.produtoId is string)
+        && (request.resource.data.get('observacao', null) == null
+            || (request.resource.data.observacao is string
+                && request.resource.data.observacao.size() <= 300));
+
+      allow read, update, delete: if ehEquipe();
+    }
+
+    // Todo o resto (produtos, lotes, movimentações, categorias): só a equipe.
+    match /{document=**} {
+      allow read, write: if ehEquipe();
+    }
+  }
+}

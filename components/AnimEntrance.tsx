@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ViewStyle } from 'react-native';
+import { View, ViewStyle, StyleProp } from 'react-native';
 import Constants from 'expo-constants';
 
 const isExpoGo =
@@ -35,7 +35,7 @@ export function FadeDown({
   duration?: number;
   damping?: number;
   springify?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   if (isExpoGo) return <View style={style}>{children}</View>;
   let anim = FadeInDownAnim.delay(delay).duration(duration);
@@ -44,7 +44,7 @@ export function FadeDown({
 }
 
 /** Spring scale-in popup (used on success screens) — drops to plain View in Expo Go */
-function ScaleInAnimated({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+function ScaleInAnimated({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const scale = useSharedValue(0);
   useEffect(() => {
     scale.value = withSpring(1, { damping: 10, stiffness: 80 });
@@ -53,7 +53,7 @@ function ScaleInAnimated({ children, style }: { children: React.ReactNode; style
   return <AnimView style={[style, animStyle]}>{children}</AnimView>;
 }
 
-export function ScaleIn({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function ScaleIn({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   if (isExpoGo) return <View style={style}>{children}</View>;
   return <ScaleInAnimated style={style}>{children}</ScaleInAnimated>;
 }
@@ -66,7 +66,7 @@ export function FadeIn({
 }: {
   children: React.ReactNode;
   duration?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   if (isExpoGo) return <View style={style}>{children}</View>;
   return <AnimView entering={FadeInAnim.duration(duration)} style={style}>{children}</AnimView>;

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import Constants from 'expo-constants';
 import { useTheme } from '../theme';
@@ -199,6 +200,21 @@ export default function LoginScreen() {
               <Text style={styles.botaoSecEmoji}>✉️</Text>
               <Text style={[styles.botaoSecTexto, { color: colors.textPrimary }]}>
                 Entrar com e-mail e senha
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* ── Doador (sem login) ── */}
+          {modo === 'inicial' && (
+            <TouchableOpacity
+              style={[styles.botaoSecundario, { borderColor: colors.accent, backgroundColor: colors.accentLight, marginTop: 12 }]}
+              onPress={() => router.push('/doador')}
+              activeOpacity={0.8}
+              accessibilityLabel="Quero doar, sem precisar de login"
+            >
+              <Text style={styles.botaoSecEmoji}>💙</Text>
+              <Text style={[styles.botaoSecTexto, { color: colors.accent }]}>
+                Quero doar (sem login)
               </Text>
             </TouchableOpacity>
           )}
