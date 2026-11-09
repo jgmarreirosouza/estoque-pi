@@ -454,6 +454,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 480,        // na web, o login não estica por toda a tela
+    alignSelf: 'center',
     paddingHorizontal: 28,
     paddingTop: 52,
     paddingBottom: 36,

@@ -1,7 +1,7 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import Constants from 'expo-constants';
@@ -110,8 +110,15 @@ function RootNavigator() {
     );
   }
 
+  // Na web, em telas largas, o app fica numa coluna centralizada (não estica).
+  const colunaWeb =
+    Platform.OS === 'web'
+      ? ({ width: '100%', maxWidth: 960, alignSelf: 'center' } as const)
+      : null;
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={[{ flex: 1 }, colunaWeb]}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <AuthGate />
       <ReclassificadorOffline />
@@ -192,6 +199,7 @@ function RootNavigator() {
         />
       </Stack>
       <OfflineBar />
+    </View>
     </View>
   );
 }
