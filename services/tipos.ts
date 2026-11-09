@@ -62,6 +62,7 @@ export interface Doacao {
   nomeItem: string;
   emoji: string;
   quantidade: number;
+  doadorUid?: string;    // uid da conta do doador (Firebase Auth)
   doadorNome: string;
   doadorContato: string; // telefone ou e-mail
   observacao?: string;

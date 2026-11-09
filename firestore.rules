@@ -5,27 +5,47 @@ rules_version = '2';
 // Como publicar: Console do Firebase → Firestore Database → Regras →
 // colar este conteúdo → Publicar.
 //
+// ATENÇÃO — ordem para não ficar sem acesso:
+//   1. Abra o app já atualizado e confirme o e-mail da sua conta (a tela
+//      "Confirme seu e-mail" aparece sozinha).
+//   2. Só depois publique estas regras. Elas exigem e-mail confirmado.
+//
 // Quem é quem:
-//   • Equipe da ONG  = conta com e-mail listado em ehEquipe() abaixo.
-//   • Doador         = qualquer pessoa SEM login (visitante do site/app).
+//   • Equipe da ONG = conta com e-mail confirmado e listado em ehEquipe().
+//   • Doador        = qualquer outra conta com e-mail confirmado.
+//   • Visitante     = sem conta: só lê a lista pública de necessidades.
 //
 // O que cada um pode fazer:
-//   • Doador  → LER a lista pública (`necessidades`) e CRIAR uma sugestão
-//               (`doacoes`, sempre 'pendente'). Não lê nem altera mais nada.
-//   • Equipe  → ler e escrever tudo (estoque, histórico, doações aprovadas...).
+//   • Visitante → LER `necessidades`.
+//   • Doador    → LER `necessidades`, CRIAR sugestão em `doacoes` (sempre
+//                 'pendente', no máximo 3 por dia) e LER só as próprias.
+//   • Equipe    → ler e escrever tudo.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ► EDITE: coloque aqui os e-mails de quem pode administrar a ONG.
-    //   Sem isso, qualquer pessoa que criasse uma conta no app viraria "equipe"
-    //   e leria os contatos dos doadores.
-    function ehEquipe() {
+    function logado() {
       return request.auth != null
-        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function verificado() {
+      return logado() && request.auth.token.email_verified == true;
+    }
+
+    // ► Esta lista precisa ser IGUAL à EMAILS_EQUIPE de services/papeis.ts.
+    function ehEquipe() {
+      return verificado()
         && request.auth.token.email in [
           'souza.joaojjg@gmail.com'
         ];
+    }
+
+    // Data de hoje (UTC) como AAAAMMDD — igual ao cálculo do app.
+    function hoje() {
+      return string(request.time.year() * 10000
+                  + request.time.month() * 100
+                  + request.time.day());
     }
 
     // Lista pública de necessidades: todos leem, só a equipe publica.
@@ -34,17 +54,26 @@ service cloud.firestore {
       allow write: if ehEquipe();
     }
 
-    // Sugestões de doação: qualquer pessoa cria (validado); só a equipe lê/altera.
+    // Sugestões de doação.
+    //   Teto diário: o ID precisa ser uid_AAAAMMDD_n com n de 1 a 3. Como o
+    //   doador não pode alterar documentos, após usar os 3 IDs do dia não
+    //   existe mais ID livre.
     match /doacoes/{id} {
-      allow create: if
-        request.resource.data.keys().hasOnly([
-          'produtoId', 'nomeItem', 'emoji', 'quantidade',
+      allow create: if verificado()
+        && id in [
+          request.auth.uid + '_' + hoje() + '_1',
+          request.auth.uid + '_' + hoje() + '_2',
+          request.auth.uid + '_' + hoje() + '_3'
+        ]
+        && request.resource.data.keys().hasOnly([
+          'doadorUid', 'produtoId', 'nomeItem', 'emoji', 'quantidade',
           'doadorNome', 'doadorContato', 'observacao', 'status', 'criadoEm'
         ])
         && request.resource.data.keys().hasAll([
-          'nomeItem', 'emoji', 'quantidade',
+          'doadorUid', 'nomeItem', 'emoji', 'quantidade',
           'doadorNome', 'doadorContato', 'status', 'criadoEm'
         ])
+        && request.resource.data.doadorUid == request.auth.uid
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoEm == request.time
         && request.resource.data.nomeItem is string
@@ -67,7 +96,11 @@ service cloud.firestore {
             || (request.resource.data.observacao is string
                 && request.resource.data.observacao.size() <= 300));
 
-      allow read, update, delete: if ehEquipe();
+      // A equipe lê tudo; o doador lê só as próprias (para o histórico).
+      allow read: if ehEquipe()
+        || (verificado() && resource.data.doadorUid == request.auth.uid);
+
+      allow update, delete: if ehEquipe();
     }
 
     // Todo o resto (produtos, lotes, movimentações, categorias): só a equipe.

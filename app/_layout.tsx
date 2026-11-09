@@ -82,18 +82,33 @@ function ReclassificadorOffline() {
 }
 
 function AuthGate() {
-  const { user, loading } = useAuth();
+  const { user, loading, papel, verificado } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (loading) return;
     const inLogin = segments[0] === 'login';
-    // A área do doador é pública: acessível sem login (web e celular).
     const inDoador = segments[0] === 'doador';
-    if (!user && !inLogin && !inDoador) router.replace('/login');
-    else if (user && inLogin) router.replace('/');
-  }, [user, loading, segments]);
+    const inVerificar = segments[0] === 'verificar-email';
+
+    // Sem conta: só o login e a lista pública de necessidades (/doador) são acessíveis.
+    if (!user) {
+      if (!inLogin && !inDoador) router.replace('/login');
+      return;
+    }
+    // Conta criada, mas e-mail ainda não confirmado.
+    if (!verificado) {
+      if (!inVerificar) router.replace('/verificar-email');
+      return;
+    }
+    // Doador: só a área do doador. Equipe: painel de estoque.
+    if (papel === 'doador') {
+      if (!inDoador) router.replace('/doador');
+      return;
+    }
+    if (inLogin || inVerificar) router.replace('/');
+  }, [user, loading, papel, verificado, segments]);
 
   return null;
 }
@@ -124,6 +139,7 @@ function RootNavigator() {
       <ReclassificadorOffline />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" />
+        <Stack.Screen name="verificar-email" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="produto/[id]"

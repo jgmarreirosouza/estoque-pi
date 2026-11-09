@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from '../../theme';
 import { ScaleIn, FadeDown } from '../../components/AnimEntrance';
-import { criarDoacao } from '../../services/doacoesService';
+import { criarDoacao, LimiteDiarioError, LIMITE_DIARIO } from '../../services/doacoesService';
+import { useAuth } from '../../contexts/AuthContext';
 import { mensagemErro } from '../../utils/erros';
 
 const EMOJI_PADRAO = '🎁';
@@ -84,11 +85,46 @@ function Sucesso({ onNova, onVoltar }: { onNova: () => void; onVoltar: () => voi
   );
 }
 
+// ── Exige conta ──────────────────────────────────────────────────────────────
+
+function ExigeConta({ semConta }: { semConta: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <View style={styles.sucessoWrap}>
+        <Text style={styles.sucessoIcon}>🔒</Text>
+        <View style={styles.sucessoTextos}>
+          <Text style={[styles.sucessoTitulo, { color: colors.textPrimary }]}>
+            {semConta ? 'Entre para doar' : 'Confirme seu e-mail'}
+          </Text>
+          <Text style={[styles.sucessoSub, { color: colors.textSecondary }]}>
+            {semConta
+              ? 'Para sugerir uma doação você precisa de uma conta. É rápido: e-mail e senha, e um link de confirmação enviado ao seu e-mail.'
+              : 'Falta confirmar o e-mail da sua conta. Abra o link que enviamos para poder doar.'}
+          </Text>
+        </View>
+        <View style={styles.sucessoBotoes}>
+          <TouchableOpacity
+            style={[styles.botaoPrincipal, { backgroundColor: colors.primary }]}
+            onPress={() => router.push(semConta ? '/login' : '/verificar-email')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.botaoPrincipalTexto}>
+              {semConta ? 'Entrar ou criar conta' : 'Confirmar e-mail'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 // ── Formulário ───────────────────────────────────────────────────────────────
 
 export default function DoarScreen() {
   const { colors } = useTheme();
   const params = useLocalSearchParams<{ produtoId?: string; nome?: string; emoji?: string }>();
+  const { user, verificado } = useAuth();
 
   // Item vindo da lista de necessidades (pode ser trocado por um item livre).
   const [itemDaLista, setItemDaLista] = useState(!!params.nome);
@@ -103,6 +139,13 @@ export default function DoarScreen() {
   const [erro, setErro] = useState('');
   const [enviado, setEnviado] = useState(false);
 
+  // Preenche nome e contato com os dados da conta (o doador pode alterar).
+  useEffect(() => {
+    if (!user) return;
+    setNome((n) => n || user.displayName || '');
+    setContato((c) => c || user.email || '');
+  }, [user]);
+
   const nomeItem = itemDaLista ? (params.nome ?? '') : itemLivre.trim();
   const qtd = Number(quantidade);
 
@@ -115,12 +158,12 @@ export default function DoarScreen() {
   async function handleEnviar() {
     setTentou(true);
     setErro('');
-    if (!formOk || enviando) return;
+    if (!formOk || enviando || !user) return;
 
     setEnviando(true);
     try {
       await comTimeout(
-        criarDoacao({
+        criarDoacao(user.uid, {
           produtoId: itemDaLista ? params.produtoId : undefined,
           nomeItem,
           emoji: itemDaLista ? (params.emoji ?? EMOJI_PADRAO) : EMOJI_PADRAO,
@@ -133,7 +176,9 @@ export default function DoarScreen() {
       );
       setEnviado(true);
     } catch (e) {
-      const msg = e instanceof Error && e.message === 'timeout'
+      const msg = e instanceof LimiteDiarioError
+        ? `Você já enviou ${LIMITE_DIARIO} sugestões hoje. Obrigado! Você poderá enviar mais amanhã.`
+        : e instanceof Error && e.message === 'timeout'
         ? 'Não conseguimos confirmar o envio agora. Verifique sua conexão e tente novamente.'
         : mensagemErro(e, 'Não foi possível enviar sua sugestão. Tente novamente.');
       setErro(msg);
@@ -151,6 +196,8 @@ export default function DoarScreen() {
     setErro('');
     setEnviado(false);
   }
+
+  if (!user || !verificado) return <ExigeConta semConta={!user} />;
 
   if (enviado) {
     return <Sucesso onNova={novaSugestao} onVoltar={() => router.replace('/doador')} />;

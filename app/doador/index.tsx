@@ -15,6 +15,8 @@ import { SkeletonLista } from '../../components/SkeletonCard';
 import { FadeDown, FadeIn } from '../../components/AnimEntrance';
 import { NecessidadePublica, UrgenciaNecessidade } from '../../services/tipos';
 import { subscribeNecessidadesPublicas } from '../../services/necessidadesPublicasService';
+import { useAuth } from '../../contexts/AuthContext';
+import { sairDaConta } from '../../services/authService';
 
 // ── Grupos de urgência exibidos ao doador ────────────────────────────────────
 
@@ -68,6 +70,7 @@ function NecessidadeCard({ item, index }: { item: NecessidadePublica; index: num
 
 export default function DoadorInicioScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [itens, setItens] = useState<NecessidadePublica[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
@@ -187,18 +190,31 @@ export default function DoadorInicioScreen() {
             <Text style={[styles.outroSeta, { color: colors.accent }]}>›</Text>
           </TouchableOpacity>
 
-          {/* Equipe */}
+          {/* Conta */}
           <View style={styles.rodape}>
-            <TouchableOpacity
-              onPress={() => router.push('/login')}
-              activeOpacity={0.6}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel="Entrar como equipe da ONG"
-            >
-              <Text style={[styles.rodapeTexto, { color: colors.textDisabled }]}>
-                Sou da equipe da ONG · Entrar
-              </Text>
-            </TouchableOpacity>
+            {user ? (
+              <TouchableOpacity
+                onPress={() => sairDaConta()}
+                activeOpacity={0.6}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Sair da conta"
+              >
+                <Text style={[styles.rodapeTexto, { color: colors.textDisabled }]}>
+                  {user.email} · Sair
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push('/login')}
+                activeOpacity={0.6}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Entrar ou criar conta"
+              >
+                <Text style={[styles.rodapeTexto, { color: colors.textDisabled }]}>
+                  Entrar ou criar conta · Equipe da ONG também entra por aqui
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
         </View>

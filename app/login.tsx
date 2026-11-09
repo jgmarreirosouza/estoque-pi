@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import Constants from 'expo-constants';
 import { useTheme } from '../theme';
-import { loginComGoogle, loginComEmail, criarContaComEmail, redefinirSenha, loginAnonimo } from '../services/authService';
+import { loginComGoogle, loginComEmail, criarContaComEmail, redefinirSenha } from '../services/authService';
 
 // O @react-native-google-signin é um módulo nativo — não funciona no Expo Go,
 // só em builds nativos (APK/EAS Build). Carregamos por require dinâmico
@@ -46,7 +46,7 @@ export default function LoginScreen() {
 
   async function handleLoginGoogle() {
     if (!GoogleSignin) {
-      setErro('Login com Google só funciona no APK instalado (não no Expo Go). Use e-mail ou modo visitante.');
+      setErro('Login com Google só funciona no APK instalado (não no Expo Go). Use e-mail e senha.');
       return;
     }
     try {
@@ -130,18 +130,6 @@ export default function LoginScreen() {
     setConfirmarSenha('');
   }
 
-  async function handleLoginAnonimo() {
-    try {
-      setCarregando(true);
-      setErro('');
-      await loginAnonimo();
-    } catch {
-      setErro('Não foi possível entrar. Verifique a conexão.');
-    } finally {
-      setCarregando(false);
-    }
-  }
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
@@ -204,17 +192,17 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
-          {/* ── Doador (sem login) ── */}
+          {/* ── Doador: lista pública de necessidades ── */}
           {modo === 'inicial' && (
             <TouchableOpacity
               style={[styles.botaoSecundario, { borderColor: colors.accent, backgroundColor: colors.accentLight, marginTop: 12 }]}
               onPress={() => router.push('/doador')}
               activeOpacity={0.8}
-              accessibilityLabel="Quero doar, sem precisar de login"
+              accessibilityLabel="Quero doar: ver a lista de necessidades"
             >
               <Text style={styles.botaoSecEmoji}>💙</Text>
               <Text style={[styles.botaoSecTexto, { color: colors.accent }]}>
-                Quero doar (sem login)
+                Quero doar
               </Text>
             </TouchableOpacity>
           )}
@@ -430,20 +418,6 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* ── Visitante ── */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              onPress={handleLoginAnonimo}
-              disabled={carregando}
-              activeOpacity={0.6}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel="Entrar como visitante em modo demonstração"
-            >
-              <Text style={[styles.visitanteTexto, { color: colors.textDisabled }]}>
-                Entrar como visitante · modo demonstração
-              </Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
