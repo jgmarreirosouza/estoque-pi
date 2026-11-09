@@ -97,7 +97,12 @@ service cloud.firestore {
                 && request.resource.data.observacao.size() <= 300));
 
       // A equipe lê tudo; o doador lê só as próprias (para o histórico).
-      allow read: if ehEquipe()
+      // 'get' também vale para um ID que ainda não existe (resource == null):
+      // é como o app descobre qual dos 3 IDs do dia está livre.
+      allow get: if ehEquipe()
+        || (verificado()
+            && (resource == null || resource.data.doadorUid == request.auth.uid));
+      allow list: if ehEquipe()
         || (verificado() && resource.data.doadorUid == request.auth.uid);
 
       allow update, delete: if ehEquipe();

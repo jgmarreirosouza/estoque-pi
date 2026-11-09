@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  getDoc,
   where,
   updateDoc,
   onSnapshot,
@@ -11,7 +12,7 @@ import {
   Timestamp,
   DocumentSnapshot,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { Doacao, StatusDoacao } from './tipos';
 
 /**
@@ -80,17 +81,18 @@ export interface DadosNovaDoacao {
  * Lança LimiteDiarioError quando os IDs do dia já foram usados.
  */
 export async function criarDoacao(uid: string, dados: DadosNovaDoacao): Promise<string> {
+  // Garante que o token enviado ao Firestore já traz o e-mail como confirmado.
+  await auth.currentUser?.getIdToken(true);
+
   const dia = diaUTC();
   for (let n = 1; n <= LIMITE_DIARIO; n++) {
     const ref = doc(db, COL, `${uid}_${dia}_${n}`);
-    try {
-      await setDoc(ref, montarDocumento(uid, dados));
-      return ref.id;
-    } catch (e) {
-      // ID já usado hoje: as regras negam (seria uma alteração). Tenta o próximo.
-      if ((e as { code?: string }).code === 'permission-denied') continue;
-      throw e;
-    }
+    // ID já usado hoje? Se sim, tenta o próximo. Qualquer outro erro (regras,
+    // rede) sobe como está, para não ser confundido com o limite diário.
+    const existente = await getDoc(ref);
+    if (existente.exists()) continue;
+    await setDoc(ref, montarDocumento(uid, dados));
+    return ref.id;
   }
   throw new LimiteDiarioError();
 }
