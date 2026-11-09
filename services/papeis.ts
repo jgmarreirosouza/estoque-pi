@@ -9,7 +9,7 @@ import { User } from 'firebase/auth';
  * os dados são as regras do Firestore.
  */
 export const EMAILS_EQUIPE: string[] = [
-  'souza.joaojjg@gmail.com',
+  'souza.joaojg@gmail.com',
 ];
 
 export type Papel = 'equipe' | 'doador';

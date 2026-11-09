@@ -36,10 +36,13 @@ if (!isExpoGo) {
  * Dispara ao montar (se já online) e toda vez que a conexão for restaurada.
  */
 function ReclassificadorOffline() {
-  const { user } = useAuth();
+  const { papel, verificado } = useAuth();
+  // Só a equipe (com e-mail confirmado) pode ler os lotes. Doadores e contas
+  // ainda não confirmadas não têm permissão e causariam erro de acesso.
+  const ativo = papel === 'equipe' && verificado;
 
   useEffect(() => {
-    if (!user) return;
+    if (!ativo) return;
 
     let emExecucao = false;
 
@@ -62,6 +65,8 @@ function ReclassificadorOffline() {
             // Ignora erros individuais — tenta de novo na próxima chamada
           }
         }
+      } catch {
+        // Sem permissão ou sem rede agora: tenta de novo quando a conexão voltar
       } finally {
         emExecucao = false;
       }
@@ -76,7 +81,7 @@ function ReclassificadorOffline() {
     });
 
     return () => unsubNetInfo();
-  }, [user]);
+  }, [ativo]);
 
   return null;
 }
