@@ -14,7 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTheme } from '../../theme';
 import { ScaleIn, FadeDown } from '../../components/AnimEntrance';
-import { criarDoacao, LimiteDiarioError, LIMITE_DIARIO } from '../../services/doacoesService';
+import { criarDoacao, subscribeMinhasDoacoes, prefixoDeHoje, LimiteDiarioError, LIMITE_DIARIO } from '../../services/doacoesService';
 import { useAuth } from '../../contexts/AuthContext';
 import { mensagemErro } from '../../utils/erros';
 
@@ -146,6 +146,18 @@ export default function DoarScreen() {
     setContato((c) => c || user.email || '');
   }, [user]);
 
+  // Quantas sugestões já foram enviadas hoje (para avisar o doador do teto diário).
+  const [enviadasHoje, setEnviadasHoje] = useState<number | null>(null);
+  useEffect(() => {
+    if (!user || !verificado) return;
+    return subscribeMinhasDoacoes(
+      user.uid,
+      (lista) => setEnviadasHoje(lista.filter((d) => d.id.startsWith(prefixoDeHoje(user.uid))).length),
+      () => {}
+    );
+  }, [user, verificado]);
+  const restantes = enviadasHoje === null ? null : Math.max(0, LIMITE_DIARIO - enviadasHoje);
+
   const nomeItem = itemDaLista ? (params.nome ?? '') : itemLivre.trim();
   const qtd = Number(quantidade);
 
@@ -159,6 +171,10 @@ export default function DoarScreen() {
     setTentou(true);
     setErro('');
     if (!formOk || enviando || !user) return;
+    if (restantes === 0) {
+      setErro(`Você já enviou ${LIMITE_DIARIO} sugestões hoje. Você poderá enviar mais amanhã.`);
+      return;
+    }
 
     setEnviando(true);
     try {
@@ -224,6 +240,13 @@ export default function DoarScreen() {
             <Text style={[styles.passoSub, { color: colors.textSecondary }]}>
               Preencha os dados abaixo. Esta é uma sugestão: a equipe vai analisar e entrar em contato.
             </Text>
+            {restantes !== null && (
+              <Text style={[styles.passoSub, { color: restantes === 0 ? colors.riscoAlto : colors.primary, fontWeight: '700' }]}>
+                {restantes === 0
+                  ? 'Você já enviou o máximo de sugestões de hoje.'
+                  : `Você ainda pode enviar ${restantes} ${restantes === 1 ? 'sugestão' : 'sugestões'} hoje.`}
+              </Text>
+            )}
 
             {/* Item */}
             {itemDaLista ? (

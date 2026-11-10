@@ -121,6 +121,7 @@ function AuthGate() {
 function RootNavigator() {
   const { colors, isDark } = useTheme();
   const { loading } = useAuth();
+  const segments = useSegments();
 
   if (loading) {
     return (
@@ -130,10 +131,11 @@ function RootNavigator() {
     );
   }
 
-  // Na web, em telas largas, o app fica numa coluna centralizada (não estica).
+  // Na web, em telas largas, o painel da ONG fica numa coluna centralizada.
+  // A área do doador cuida da própria largura (o cabeçalho ocupa a tela toda).
   const colunaWeb =
-    Platform.OS === 'web'
-      ? ({ width: '100%', maxWidth: 960, alignSelf: 'center' } as const)
+    Platform.OS === 'web' && segments[0] !== 'doador'
+      ? ({ width: '100%', maxWidth: 1200, alignSelf: 'center' } as const)
       : null;
 
   return (

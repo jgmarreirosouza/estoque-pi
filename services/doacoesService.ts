@@ -76,6 +76,11 @@ export interface DadosNovaDoacao {
   observacao?: string;
 }
 
+/** Prefixo dos IDs das sugestões de hoje deste doador (para contar quantas já enviou). */
+export function prefixoDeHoje(uid: string): string {
+  return `${uid}_${diaUTC()}_`;
+}
+
 /**
  * Cria uma sugestão de doação (sempre como 'pendente') para o doador logado.
  * Lança LimiteDiarioError quando os IDs do dia já foram usados.
