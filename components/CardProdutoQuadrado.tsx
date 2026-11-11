@@ -45,6 +45,8 @@ interface Props {
   riscoProxima?: NivelRisco | null;
   /** Texto do selo quando não há lotes (ex.: "Aguardando"). */
   seloVazio?: string;
+  /** Botão extra dentro do card (ex.: "Adicionar lote" em produto sem lotes). */
+  acao?: { label: string; onPress: () => void };
   onPress: () => void;
 }
 
@@ -86,6 +88,17 @@ export function CardProdutoQuadrado(p: Props) {
             <Text style={[styles.seloTexto, { color: colors.textDisabled }]}>{p.seloVazio ?? 'Aguardando'}</Text>
           </View>
         )}
+
+        {p.acao && (
+          <TouchableOpacity
+            style={[styles.acao, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+            onPress={p.acao.onPress}
+            activeOpacity={0.8}
+            accessibilityLabel={p.acao.label}
+          >
+            <Text style={[styles.acaoTexto, { color: colors.primaryDark }]}>{p.acao.label}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -108,6 +121,8 @@ const styles = StyleSheet.create({
   sub:    { fontSize: 13 },
   rodape: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
   val:    { fontSize: 12 },
+  acao:   { alignSelf: 'flex-start', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7, marginTop: 6 },
+  acaoTexto: { fontSize: 13, fontWeight: '700' },
   selo:   { alignSelf: 'flex-start', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6 },
   seloTexto: { fontSize: 13, fontWeight: '700' },
 });

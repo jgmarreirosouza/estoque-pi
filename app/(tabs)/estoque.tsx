@@ -23,7 +23,7 @@ import { FadeDown } from '../../components/AnimEntrance';
 import { CardProdutoQuadrado, GradeCards, useColunasGrade } from '../../components/CardProdutoQuadrado';
 import { useLayout } from '../../utils/useLayout';
 
-type FiltroRisco = 'todos' | 'risco_alto' | 'atencao' | 'seguro';
+type FiltroRisco = 'todos' | 'risco_alto' | 'atencao' | 'seguro' | 'sem_lotes';
 
 interface ProdutoEstoque {
   produto: Produto;
@@ -33,6 +33,8 @@ interface ProdutoEstoque {
   countRiscoAlto: number;
   countAtencao: number;
   countSeguro: number;
+  /** Produto cadastrado que ainda não tem nenhum lote em estoque. */
+  semLotes: boolean;
 }
 
 const RISCO_ORDEM: Record<string, number> = { risco_alto: 0, atencao: 1, seguro: 2 };
@@ -45,6 +47,40 @@ function riscoOrdem(r: NivelRisco | null): number {
 function formatarData(iso: string) {
   const [, m, d] = iso.split('-');
   return `${d}/${m}`;
+}
+
+// ── Card de produto sem lotes (lista do celular) ─────────────────────────────
+
+function CardSemLotes({ item }: { item: ProdutoEstoque }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: colors.border }]}>
+      <TouchableOpacity
+        style={styles.cardHeader}
+        onPress={() => router.push(`/produto/${item.produto.id}`)}
+        activeOpacity={0.75}
+        accessibilityLabel={`${item.produto.nome}, sem lotes cadastrados. Ver detalhes`}
+      >
+        <View style={[styles.emojiBg, { backgroundColor: colors.surfaceSecondary }]}>
+          {item.produto.fotoUrl
+            ? <Image source={{ uri: item.produto.fotoUrl }} style={styles.foto} />
+            : <Text style={styles.emoji}>{item.produto.emoji}</Text>}
+        </View>
+        <View style={styles.headerInfo}>
+          <Text style={[styles.nome, { color: colors.textPrimary }]} numberOfLines={1}>{item.produto.nome}</Text>
+          <Text style={[styles.totalTexto, { color: colors.textDisabled }]}>Sem lotes cadastrados</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.addLoteBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+          onPress={() => router.push(`/entrada?produtoId=${item.produto.id}`)}
+          activeOpacity={0.8}
+          accessibilityLabel={`Adicionar lote de ${item.produto.nome}`}
+        >
+          <Text style={[styles.addLoteTexto, { color: colors.primaryDark }]}>＋ Lote</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 // ── Card de produto colapsável ───────────────────────────────────────────────
@@ -164,6 +200,19 @@ function ProdutoCard({ item, index = 0 }: { item: ProdutoEstoque; index?: number
 
 // Card quadrado (web, tela larga): mostra o lote que vence primeiro.
 function CardQuadradoEstoque({ item }: { item: ProdutoEstoque }) {
+  if (item.semLotes) {
+    return (
+      <CardProdutoQuadrado
+        nome={item.produto.nome}
+        emoji={item.produto.emoji}
+        fotoUrl={item.produto.fotoUrl}
+        subtitulo="Sem lotes cadastrados"
+        seloVazio="Aguardando doação"
+        acao={{ label: '＋ Adicionar lote', onPress: () => router.push(`/entrada?produtoId=${item.produto.id}`) }}
+        onPress={() => router.push(`/produto/${item.produto.id}`)}
+      />
+    );
+  }
   const proximo = [...item.lotes].sort((a, b) => a.validade.localeCompare(b.validade))[0];
   return (
     <CardProdutoQuadrado
@@ -222,9 +271,13 @@ export default function EstoqueScreen() {
             riscoOrdem(a.risco) - riscoOrdem(b.risco) ||
             new Date(a.validade).getTime() - new Date(b.validade).getTime()
           );
-        if (ls.length === 0) return null;
         const total = ls.reduce((s, l) => s + l.quantidade, 0);
-        if (total === 0) return null;
+        if (ls.length === 0 || total === 0) {
+          return {
+            produto: p, lotes: [], riscoGeral: 'seguro' as NivelRisco, total: 0,
+            countRiscoAlto: 0, countAtencao: 0, countSeguro: 0, semLotes: true,
+          };
+        }
         return {
           produto: p,
           lotes: ls,
@@ -233,6 +286,7 @@ export default function EstoqueScreen() {
           countRiscoAlto: ls.filter((l) => l.risco === 'risco_alto').length,
           countAtencao:   ls.filter((l) => l.risco === 'atencao').length,
           countSeguro:    ls.filter((l) => l.risco === 'seguro').length,
+          semLotes: false,
         };
       })
       .filter((i): i is ProdutoEstoque => i !== null);
@@ -245,28 +299,43 @@ export default function EstoqueScreen() {
         const matchCategoria = filtroCategoria === null || item.produto.categoria === filtroCategoria;
         const matchRisco =
           filtroRisco === 'todos'      ? true
+          : filtroRisco === 'sem_lotes'  ? item.semLotes
           : filtroRisco === 'risco_alto' ? item.countRiscoAlto > 0
           : filtroRisco === 'atencao'    ? item.countAtencao > 0
-          : /* seguro */                  item.riscoGeral === 'seguro';
+          : /* seguro */                  item.riscoGeral === 'seguro' && !item.semLotes;
         return matchBusca && matchCategoria && matchRisco;
       })
       .sort((a, b) => RISCO_ORDEM[a.riscoGeral] - RISCO_ORDEM[b.riscoGeral]);
   }, [itens, busca, filtroRisco, filtroCategoria]);
 
-  const atencaoItens = useMemo(() => itensFiltrados.filter((i) => i.riscoGeral !== 'seguro'), [itensFiltrados]);
-  const segurosItens = useMemo(() => itensFiltrados.filter((i) => i.riscoGeral === 'seguro'), [itensFiltrados]);
+  const atencaoItens   = useMemo(() => itensFiltrados.filter((i) => !i.semLotes && i.riscoGeral !== 'seguro'), [itensFiltrados]);
+  const segurosItens   = useMemo(() => itensFiltrados.filter((i) => !i.semLotes && i.riscoGeral === 'seguro'), [itensFiltrados]);
+  const semLotesItens  = useMemo(() => itensFiltrados.filter((i) => i.semLotes), [itensFiltrados]);
 
   const chipRisco: { valor: FiltroRisco; label: string; emoji: string }[] = [
     { valor: 'todos',      label: 'Todos',      emoji: '📦' },
     { valor: 'risco_alto', label: 'Risco alto',  emoji: '🔴' },
     { valor: 'atencao',    label: 'Atenção',     emoji: '🟡' },
     { valor: 'seguro',     label: 'Seguro',      emoji: '🟢' },
+    { valor: 'sem_lotes',  label: 'Sem lotes',   emoji: '📭' },
   ];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.titulo, { color: colors.textPrimary }]}>Estoque</Text>
+        <View style={styles.tituloLinha}>
+          <Text style={[styles.titulo, { color: colors.textPrimary }]}>Estoque</Text>
+          {grade && (
+            <TouchableOpacity
+              style={[styles.novoBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/cadastro')}
+              activeOpacity={0.85}
+              accessibilityLabel="Cadastrar novo produto"
+            >
+              <Text style={styles.novoBtnTexto}>＋  Novo produto</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={[styles.buscaWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.buscaIcn}>🔍</Text>
@@ -321,19 +390,19 @@ export default function EstoqueScreen() {
         <SkeletonLista n={5} />
       ) : itensFiltrados.length === 0 ? (
         <View style={styles.vazioWrap}>
-          {lotes.length === 0 ? (
+          {produtos.length === 0 ? (
             <>
               <Text style={styles.vazioEmoji}>📦</Text>
-              <Text style={[styles.vazioTitulo, { color: colors.textPrimary }]}>Nenhuma doação registrada</Text>
+              <Text style={[styles.vazioTitulo, { color: colors.textPrimary }]}>Nenhum produto cadastrado</Text>
               <Text style={[styles.vazioTexto, { color: colors.textSecondary }]}>
-                Registre a primeira entrada para acompanhar o estoque.
+                Cadastre os produtos que a Casa da Criança recebe em doação.
               </Text>
               <TouchableOpacity
                 style={[styles.vazioBotao, { backgroundColor: colors.primary }]}
-                onPress={() => router.push('/entrada')}
+                onPress={() => router.push('/cadastro')}
                 activeOpacity={0.85}
               >
-                <Text style={styles.vazioBotaoTexto}>Registrar entrada</Text>
+                <Text style={styles.vazioBotaoTexto}>Cadastrar produto</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -391,7 +460,38 @@ export default function EstoqueScreen() {
             </>
           )}
 
+          {semLotesItens.length > 0 && (
+            <>
+              {(atencaoItens.length > 0 || segurosItens.length > 0) && <View style={{ height: 24 }} />}
+              <View style={styles.secaoHeader}>
+                <View style={[styles.secaoDot, { backgroundColor: colors.textDisabled }]} />
+                <Text style={[styles.secaoTitulo, { color: colors.textSecondary }]}>SEM LOTES CADASTRADOS</Text>
+                <Text style={[styles.secaoCount, { color: colors.textDisabled }]}>{semLotesItens.length}</Text>
+              </View>
+              {grade ? (
+                <GradeCards colunas={colunas}>
+                  {semLotesItens.map((item) => <CardQuadradoEstoque key={item.produto.id} item={item} />)}
+                </GradeCards>
+              ) : semLotesItens.map((item) => (
+                <CardSemLotes key={item.produto.id} item={item} />
+              ))}
+            </>
+          )}
+
         </ScrollView>
+      )}
+
+      {/* Celular: botão fixo para cadastrar produto (na web larga o botão fica no título) */}
+      {!grade && (
+        <View style={[styles.fabWrap, { backgroundColor: colors.background }]}>
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/cadastro')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.fabTexto}>＋  Novo produto</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -401,6 +501,14 @@ const styles = StyleSheet.create({
   safe:   { flex: 1 },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8, gap: 14 },
   titulo: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  tituloLinha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  novoBtn: { borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12 },
+  novoBtnTexto: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  addLoteBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  addLoteTexto: { fontSize: 13, fontWeight: '700' },
+  fabWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingBottom: 20, paddingTop: 12 },
+  fab:     { borderRadius: 18, paddingVertical: 18, alignItems: 'center' },
+  fabTexto: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.2 },
 
   buscaWrap:  { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 },
   buscaIcn:   { fontSize: 18 },

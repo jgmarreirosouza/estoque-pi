@@ -31,7 +31,7 @@ export function TopoBarOng({ state, descriptors, navigation }: BottomTabBarProps
 
       <View style={styles.abas}>
         {state.routes
-          .filter((r) => r.name !== 'configuracoes')
+          .filter((r) => r.name !== 'configuracoes' && r.name !== 'produtos')
           .map((r) => {
             const ativa = r.name === rotaAtiva;
             const titulo = descriptors[r.key].options.title ?? r.name;

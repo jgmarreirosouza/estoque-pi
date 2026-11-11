@@ -77,6 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="produtos"
         options={{
+          href: null, // unificada na página Estoque
           title: 'Produtos',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} />,
         }}
