@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { useLayout } from '../../utils/useLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
@@ -121,6 +122,8 @@ function Cartao({ children }: { children: React.ReactNode }) {
 
 export default function ConfiguracoesScreen() {
   const { colors, mode, setMode } = useTheme();
+  const { largo } = useLayout();
+  const centrado = Platform.OS === 'web' && largo ? { width: '100%' as const, maxWidth: 820, alignSelf: 'center' as const } : null;
   const router = useRouter();
   const { user } = useAuth();
   const [seedando, setSeedando] = useState(false);
@@ -128,7 +131,7 @@ export default function ConfiguracoesScreen() {
   const isEmailUser = user?.providerData.some((p) => p.providerId === 'password') ?? false;
   const isGoogleUser = user?.providerData.some((p) => p.providerId === 'google.com') ?? false;
   const isAnonimo = user?.isAnonymous ?? false;
-  const isDev = __DEV__;
+  const isDev = __DEV__; // botão de dados de teste: só aparece ao rodar com npx expo start
 
   const nomeExibido = (() => {
     if (isAnonimo) return 'Visitante';
@@ -238,7 +241,7 @@ export default function ConfiguracoesScreen() {
   ];
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }, centrado]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Título */}

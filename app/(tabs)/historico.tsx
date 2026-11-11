@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useLayout } from '../../utils/useLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -120,6 +121,8 @@ function ResumoCard({ emoji, label, valor, bg, cor }: {
 
 export default function HistoricoScreen() {
   const { colors } = useTheme();
+  const { largo } = useLayout();
+  const centrado = Platform.OS === 'web' && largo ? { width: '100%' as const, maxWidth: 820, alignSelf: 'center' as const } : null;
   const [filtro, setFiltro]           = useState<Filtro>('todos');
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [produtos, setProdutos]           = useState<Produto[]>([]);
@@ -166,7 +169,7 @@ export default function HistoricoScreen() {
   }, [filtro, movimentacoes]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }, centrado]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: colors.background }]}>
         <Text style={[styles.titulo, { color: colors.textPrimary }]}>Histórico</Text>
 

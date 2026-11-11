@@ -17,6 +17,8 @@ import { useTheme } from '../../theme';
 import { Produto, Lote } from '../../services/tipos';
 import { subscribeToProdutos } from '../../services/produtosService';
 import { subscribeAllLotes } from '../../services/lotesService';
+import { CardProdutoQuadrado, GradeCards, useColunasGrade } from '../../components/CardProdutoQuadrado';
+import { useLayout } from '../../utils/useLayout';
 import { CategoriaItem, CATEGORIAS_PADRAO, subscribeCategorias } from '../../services/categoriasService';
 
 type FiltroCategoria = string | null;
@@ -65,6 +67,9 @@ function ProdutoCard({ info, categorias }: { info: ProdutoInfo; categorias: Cate
 
 export default function ProdutosScreen() {
   const { colors } = useTheme();
+  const { largo } = useLayout();
+  const colunas = useColunasGrade();
+  const grade = Platform.OS === 'web' && largo;
   const [busca, setBusca] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState<FiltroCategoria>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -199,6 +204,25 @@ export default function ProdutosScreen() {
             </>
           )}
         </View>
+      ) : grade ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.lista} showsVerticalScrollIndicator={false}>
+          <GradeCards colunas={colunas}>
+            {itens.map((info) => (
+              <CardProdutoQuadrado
+                key={info.produto.id}
+                nome={info.produto.nome}
+                emoji={info.produto.emoji}
+                fotoUrl={info.produto.fotoUrl}
+                subtitulo={
+                  (categorias.find((c) => c.id === info.produto.categoria)?.label ?? info.produto.categoria) +
+                  (info.produto.conteudo ? ` · ${info.produto.conteudo}` : '')
+                }
+                seloVazio="Aguardando doação"
+                onPress={() => router.push(`/produto/${info.produto.id}`)}
+              />
+            ))}
+          </GradeCards>
+        </ScrollView>
       ) : (
         <FlatList
           data={itens}
@@ -210,9 +234,9 @@ export default function ProdutosScreen() {
         />
       )}
 
-      <View style={[styles.fabWrap, { backgroundColor: colors.background }]}>
+      <View style={[styles.fabWrap, { backgroundColor: colors.background }, grade && { alignItems: 'flex-end' }]}>
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: colors.primary }]}
+          style={[styles.fab, { backgroundColor: colors.primary }, grade && { width: 280 }]}
           onPress={() => router.push('/cadastro')}
           activeOpacity={0.85}
         >

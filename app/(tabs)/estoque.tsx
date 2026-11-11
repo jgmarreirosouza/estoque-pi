@@ -20,6 +20,8 @@ import { subscribeAllLotes } from '../../services/lotesService';
 import { getRiscoProduto, diasParaVencer, aplicarRiscoMulti } from '../../services/risco';
 import { CategoriaItem, CATEGORIAS_PADRAO, subscribeCategorias } from '../../services/categoriasService';
 import { FadeDown } from '../../components/AnimEntrance';
+import { CardProdutoQuadrado, GradeCards, useColunasGrade } from '../../components/CardProdutoQuadrado';
+import { useLayout } from '../../utils/useLayout';
 
 type FiltroRisco = 'todos' | 'risco_alto' | 'atencao' | 'seguro';
 
@@ -160,10 +162,32 @@ function ProdutoCard({ item, index = 0 }: { item: ProdutoEstoque; index?: number
   );
 }
 
+// Card quadrado (web, tela larga): mostra o lote que vence primeiro.
+function CardQuadradoEstoque({ item }: { item: ProdutoEstoque }) {
+  const proximo = [...item.lotes].sort((a, b) => a.validade.localeCompare(b.validade))[0];
+  return (
+    <CardProdutoQuadrado
+      nome={item.produto.nome}
+      emoji={item.produto.emoji}
+      fotoUrl={item.produto.fotoUrl}
+      subtitulo={`${item.total} un.`}
+      risco={item.riscoGeral}
+      countLotes={item.lotes.length}
+      validadeProxima={proximo.validade}
+      diasProxima={diasParaVencer(proximo.validade)}
+      riscoProxima={proximo.risco}
+      onPress={() => router.push(`/produto/${item.produto.id}`)}
+    />
+  );
+}
+
 // ── Tela principal ───────────────────────────────────────────────────────────
 
 export default function EstoqueScreen() {
   const { colors } = useTheme();
+  const { largo } = useLayout();
+  const colunas = useColunasGrade();
+  const grade = Platform.OS === 'web' && largo;
   const [busca, setBusca] = useState('');
   const [filtroRisco, setFiltroRisco] = useState<FiltroRisco>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState<string | null>(null);
@@ -339,7 +363,11 @@ export default function EstoqueScreen() {
                 <Text style={[styles.secaoTitulo, { color: colors.textSecondary }]}>REQUER ATENÇÃO</Text>
                 <Text style={[styles.secaoCount, { color: colors.textDisabled }]}>{atencaoItens.length}</Text>
               </View>
-              {atencaoItens.map((item, i) => (
+              {grade ? (
+                <GradeCards colunas={colunas}>
+                  {atencaoItens.map((item) => <CardQuadradoEstoque key={item.produto.id} item={item} />)}
+                </GradeCards>
+              ) : atencaoItens.map((item, i) => (
                 <ProdutoCard key={item.produto.id} item={item} index={i} />
               ))}
               {segurosItens.length > 0 && <View style={{ height: 24 }} />}
@@ -353,7 +381,11 @@ export default function EstoqueScreen() {
                 <Text style={[styles.secaoTitulo, { color: colors.textSecondary }]}>ESTOQUE SEGURO</Text>
                 <Text style={[styles.secaoCount, { color: colors.textDisabled }]}>{segurosItens.length}</Text>
               </View>
-              {segurosItens.map((item, i) => (
+              {grade ? (
+                <GradeCards colunas={colunas}>
+                  {segurosItens.map((item) => <CardQuadradoEstoque key={item.produto.id} item={item} />)}
+                </GradeCards>
+              ) : segurosItens.map((item, i) => (
                 <ProdutoCard key={item.produto.id} item={item} index={atencaoItens.length + i} />
               ))}
             </>

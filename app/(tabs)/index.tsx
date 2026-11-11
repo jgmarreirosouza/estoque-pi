@@ -12,6 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../../theme';
+import { useLayout } from '../../utils/useLayout';
 import { RiskBadge } from '../../components/RiskBadge';
 import { SkeletonLista } from '../../components/SkeletonCard';
 import { FadeDown, FadeIn } from '../../components/AnimEntrance';
@@ -167,6 +168,7 @@ function CardClasse({ nome, valor, total, bg, textColor, descricao }: {
 export default function InicioScreen() {
   const { colors } = useTheme();
   const { top } = useSafeAreaInsets();
+  const { largo } = useLayout();
   // StatusBar.currentHeight é mais confiável no Android para dispositivos sem notch
   const topInset = Platform.OS === 'android'
     ? Math.max(top, StatusBar.currentHeight ?? 24)
@@ -240,25 +242,8 @@ export default function InicioScreen() {
       .filter((x): x is ProdutoAtencaoCard => x !== null),
   [produtos, lotesComRisco]);
 
-  return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={[]}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingBottom: footerHeight + 16, paddingTop: topInset + 16 }]}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── Cabeçalho ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.saudacao, { color: colors.textPrimary }]}>{getSaudacao()}! 👋</Text>
-            <Text style={[styles.data, { color: colors.textSecondary }]}>{getDataFormatada()}</Text>
-          </View>
-          <View style={[styles.iaBadge, { backgroundColor: colors.primaryLight }]}>
-            <Text style={styles.iaEmoji}>🧠</Text>
-          </View>
-        </View>
-
+  const blocoDoacoes = (
+    <>
         {/* ── Sugestões de doação (área do doador) ── */}
         <FadeIn duration={500}>
           <TouchableOpacity
@@ -296,6 +281,11 @@ export default function InicioScreen() {
           </TouchableOpacity>
         </FadeIn>
 
+    </>
+  );
+
+  const blocoAlerta = (
+    <>
         {/* ── Alerta de Desperdício ── */}
         {totalLotes > 0 && (
           unidadesEmRisco > 0 ? (
@@ -338,6 +328,11 @@ export default function InicioScreen() {
           )
         )}
 
+    </>
+  );
+
+  const blocoDistribuicao = (
+    <>
         {/* ── Distribuição de risco ── */}
         {totalLotes > 0 && (
           <>
@@ -359,6 +354,11 @@ export default function InicioScreen() {
           </>
         )}
 
+    </>
+  );
+
+  const blocoAtencao = (
+    <>
         {/* ── Requer atenção ── */}
         <View style={styles.secaoHeader}>
           <Text style={[styles.secaoTitulo, { color: colors.textSecondary }]}>REQUER ATENÇÃO</Text>
@@ -395,16 +395,123 @@ export default function InicioScreen() {
             )}
           </FadeIn>
         ) : (
-          <View style={styles.lista}>
-            {produtosAtencao.map((item, i) => (
-              <CardAtencao key={item.produto.id} item={item} index={i} />
-            ))}
-          </View>
+          largo ? (
+            // Tela larga: dois cards por linha (colunas independentes, pois cada card expande).
+            <View style={styles.atencaoColunas}>
+              {[0, 1].map((col) => (
+                <View key={col} style={styles.atencaoCol}>
+                  {produtosAtencao
+                    .filter((_, i) => i % 2 === col)
+                    .map((item) => (
+                      <CardAtencao key={item.produto.id} item={item} index={0} />
+                    ))}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.lista}>
+              {produtosAtencao.map((item, i) => (
+                <CardAtencao key={item.produto.id} item={item} index={i} />
+              ))}
+            </View>
+          )
         )}
 
+    </>
+  );
+
+  // Tela larga: os três atalhos principais lado a lado, logo abaixo do cabeçalho.
+  const atalhosLinha = (
+    <View style={styles.atalhosLinha}>
+      <TouchableOpacity
+        style={[styles.atalho, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+        onPress={() => router.push('/entrada')}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.atalhoEmoji}>📥</Text>
+        <Text style={[styles.atalhoTitulo, { color: '#FFFFFF' }]}>Registrar entrada de doação</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.atalho, { backgroundColor: colors.accentLight, borderColor: colors.accent }]}
+        onPress={() => router.push('/necessidades')}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.atalhoEmoji}>📝</Text>
+        <Text style={[styles.atalhoTitulo, { color: colors.accent }]}>Ver lista de necessidades</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.atalho,
+          doacoesPendentes > 0
+            ? { backgroundColor: colors.primaryLight, borderColor: colors.primary }
+            : { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+        onPress={() => router.push('/doacoes')}
+        activeOpacity={0.85}
+        accessibilityLabel={
+          doacoesPendentes > 0
+            ? `${doacoesPendentes} sugestões de doação aguardando análise. Toque para ver.`
+            : 'Sugestões de doação. Toque para ver.'
+        }
+      >
+        <Text style={styles.atalhoEmoji}>📬</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.atalhoTitulo, { color: doacoesPendentes > 0 ? colors.primaryDark : colors.textPrimary }]}>
+            Sugestões de doação
+          </Text>
+          <Text style={[styles.atalhoSub, { color: doacoesPendentes > 0 ? colors.primaryDark : colors.textSecondary }]}>
+            {doacoesPendentes === 0
+              ? 'Nenhuma aguardando análise'
+              : `${doacoesPendentes} ${doacoesPendentes === 1 ? 'aguardando' : 'aguardando'} análise`}
+          </Text>
+        </View>
+        {doacoesPendentes > 0 && (
+          <View style={[styles.doacoesBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.doacoesBadgeTexto}>{doacoesPendentes}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={[]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scroll, { paddingBottom: largo ? 40 : footerHeight + 16, paddingTop: topInset + 16 }]}
+        showsVerticalScrollIndicator={false}
+      >
+
+        {/* ── Cabeçalho ── */}
+        <View style={styles.header}>
+          <View>
+            <Text style={[styles.saudacao, { color: colors.textPrimary }]}>{getSaudacao()}! 👋</Text>
+            <Text style={[styles.data, { color: colors.textSecondary }]}>{getDataFormatada()}</Text>
+          </View>
+          <View style={[styles.iaBadge, { backgroundColor: colors.primaryLight }]}>
+            <Text style={styles.iaEmoji}>🧠</Text>
+          </View>
+        </View>
+
+        {largo ? (
+          <>
+            {atalhosLinha}
+            {blocoAlerta}
+            {blocoDistribuicao}
+            {blocoAtencao}
+          </>
+        ) : (
+          <>
+            {blocoDoacoes}
+            {blocoAlerta}
+            {blocoDistribuicao}
+            {blocoAtencao}
+          </>
+        )}
       </ScrollView>
 
-      {/* ── Footer fixo ── */}
+      {/* ── Footer fixo (só no celular) ── */}
+      {!largo && (
       <View
         style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.divider, paddingBottom: 8 }]}
         onLayout={(e) => setFooterHeight(e.nativeEvent.layout.height)}
@@ -442,6 +549,7 @@ export default function InicioScreen() {
           </FadeDown>
         )}
       </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -449,6 +557,15 @@ export default function InicioScreen() {
 const styles = StyleSheet.create({
   safe:   { flex: 1 },
   scroll: { paddingHorizontal: 20 },
+
+  // Tela larga (web/tablet): duas colunas
+  atalhosLinha: { flexDirection: 'row', gap: 14, marginBottom: 24 },
+  atalho: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 84, paddingHorizontal: 18, paddingVertical: 14, borderRadius: 18, borderWidth: 1.5 },
+  atalhoEmoji: { fontSize: 28 },
+  atalhoTitulo: { flex: 1, fontSize: 16, fontWeight: '800', letterSpacing: 0.1 },
+  atalhoSub: { fontSize: 13, marginTop: 2 },
+  atencaoColunas: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  atencaoCol: { flex: 1, minWidth: 0 },
 
   footer:           { paddingHorizontal: 20, borderTopWidth: 1 },
   footerToggle:     { alignItems: 'center', paddingVertical: 10, gap: 4 },
