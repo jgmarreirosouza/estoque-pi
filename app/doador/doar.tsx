@@ -22,11 +22,25 @@ const EMOJI_PADRAO = '🎁';
 
 // ── Validações ───────────────────────────────────────────────────────────────
 
-function contatoValido(valor: string): boolean {
-  const v = valor.trim();
-  if (/^\S+@\S+\.\S+$/.test(v)) return true; // e-mail
-  const digitos = v.replace(/\D/g, '');
-  return digitos.length >= 10 && digitos.length <= 13; // telefone com DDD
+type FormaContato = 'telefone' | 'email';
+
+function emailValido(valor: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
+}
+
+/** Celular brasileiro: DDD + 9 + 8 dígitos (11 dígitos no total). */
+function celularValido(valor: string): boolean {
+  const d = valor.replace(/\D/g, '');
+  return d.length === 11 && d[2] === '9';
+}
+
+/** Máscara (DD) 9XXXX-XXXX enquanto digita. */
+function mascaraCelular(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
 /** Rejeita se a gravação não for confirmada a tempo (ex.: sem internet). */
@@ -131,7 +145,10 @@ export default function DoarScreen() {
   const [itemLivre, setItemLivre] = useState('');
   const [quantidade, setQuantidade] = useState('1');
   const [nome, setNome] = useState('');
-  const [contato, setContato] = useState('');
+  // Forma preferencial de contato: o doador escolhe uma e informa só o dado correspondente.
+  const [forma, setForma] = useState<FormaContato>('email');
+  const [email, setEmail] = useState('');
+  const [telefone, setTelefone] = useState('');
   const [observacao, setObservacao] = useState('');
 
   const [tentou, setTentou] = useState(false);
@@ -143,7 +160,7 @@ export default function DoarScreen() {
   useEffect(() => {
     if (!user) return;
     setNome((n) => n || user.displayName || '');
-    setContato((c) => c || user.email || '');
+    setEmail((e) => e || user.email || '');
   }, [user]);
 
   // Quantas sugestões já foram enviadas hoje (para avisar o doador do teto diário).
@@ -164,7 +181,8 @@ export default function DoarScreen() {
   const itemOk = nomeItem.length >= 2;
   const qtdOk = Number.isInteger(qtd) && qtd >= 1 && qtd <= 9999;
   const nomeOk = nome.trim().length >= 2;
-  const contatoOk = contatoValido(contato);
+  const contatoOk = forma === 'email' ? emailValido(email) : celularValido(telefone);
+  const contato = forma === 'email' ? email.trim() : telefone;
   const formOk = itemOk && qtdOk && nomeOk && contatoOk;
 
   async function handleEnviar() {
@@ -335,22 +353,63 @@ export default function DoarScreen() {
             </View>
 
             <View style={styles.campoWrap}>
-              <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>Telefone (com DDD) ou e-mail *</Text>
-              <View style={inputWrap(tentou && !contatoOk)}>
-                <TextInput
-                  style={[styles.input, { color: colors.textPrimary }]}
-                  placeholder="(19) 99999-9999 ou nome@email.com"
-                  placeholderTextColor={colors.textDisabled}
-                  value={contato}
-                  onChangeText={setContato}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  maxLength={80}
-                />
+              <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>Como prefere ser contatado? *</Text>
+              <View style={styles.formaRow}>
+                {([
+                  { valor: 'telefone', rotulo: '📱 Telefone' },
+                  { valor: 'email', rotulo: '✉️ E-mail' },
+                ] as { valor: FormaContato; rotulo: string }[]).map((o) => {
+                  const ativo = forma === o.valor;
+                  return (
+                    <TouchableOpacity
+                      key={o.valor}
+                      style={[
+                        styles.formaBtn,
+                        { backgroundColor: ativo ? colors.primaryLight : colors.surface, borderColor: ativo ? colors.primary : colors.border },
+                      ]}
+                      onPress={() => setForma(o.valor)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: ativo }}
+                    >
+                      <Text style={[styles.formaTexto, { color: ativo ? colors.primaryDark : colors.textSecondary }]}>{o.rotulo}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={[inputWrap(tentou && !contatoOk), { marginTop: 10 }]}>
+                {forma === 'telefone' ? (
+                  <TextInput
+                    style={[styles.input, { color: colors.textPrimary }]}
+                    placeholder="(19) 99999-9999"
+                    placeholderTextColor={colors.textDisabled}
+                    value={telefone}
+                    onChangeText={(t) => setTelefone(mascaraCelular(t))}
+                    keyboardType="phone-pad"
+                    maxLength={15}
+                    accessibilityLabel="Número de celular com DDD"
+                  />
+                ) : (
+                  <TextInput
+                    style={[styles.input, { color: colors.textPrimary }]}
+                    placeholder="nome@email.com"
+                    placeholderTextColor={colors.textDisabled}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    maxLength={80}
+                    accessibilityLabel="Endereço de e-mail"
+                  />
+                )}
               </View>
               {tentou && !contatoOk && (
                 <Text style={[styles.erroCampo, { color: colors.riscoAlto }]}>
-                  Informe um telefone com DDD ou um e-mail válido.
+                  {forma === 'telefone'
+                    ? 'Informe um celular com DDD, ex.: (19) 99999-9999.'
+                    : 'Informe um e-mail válido, ex.: nome@email.com.'}
                 </Text>
               )}
             </View>
@@ -419,6 +478,10 @@ const styles = StyleSheet.create({
   itemResumoNome:  { fontSize: 17, fontWeight: '800' },
   itemResumoSub:   { fontSize: 13, marginTop: 2, fontWeight: '600' },
   trocar:          { fontSize: 14, fontWeight: '700' },
+
+  formaRow:   { flexDirection: 'row', gap: 10 },
+  formaBtn:   { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 13, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
+  formaTexto: { fontSize: 15, fontWeight: '700' },
 
   campoWrap:  { marginBottom: 18 },
   campoLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3, marginBottom: 6 },

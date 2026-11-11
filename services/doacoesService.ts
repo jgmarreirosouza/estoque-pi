@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  deleteField,
   Timestamp,
   DocumentSnapshot,
 } from 'firebase/firestore';
@@ -62,6 +63,7 @@ function docToDoacao(d: DocumentSnapshot): Doacao {
     doadorContato: data.doadorContato,
     observacao: data.observacao ?? undefined,
     status: data.status as StatusDoacao,
+    motivoRecusa: data.motivoRecusa ?? undefined,
     criadoEm: (ts ? ts.toDate() : new Date()).toISOString(),
   };
 }
@@ -145,6 +147,26 @@ export function subscribeToDoacoes(
   return onSnapshot(q, (snap) => callback(snap.docs.map(docToDoacao)), onError);
 }
 
-export async function atualizarStatusDoacao(id: string, status: StatusDoacao): Promise<void> {
-  await updateDoc(doc(db, COL, id), { status, atualizadoEm: serverTimestamp() });
+/** Tamanho mínimo/máximo do motivo de recusa (texto livre da equipe). */
+export const MOTIVO_MIN = 5;
+export const MOTIVO_MAX = 300;
+
+/**
+ * Muda o status. Ao RECUSAR, o motivo é obrigatório e fica salvo na doação para
+ * o doador consultar. Em qualquer outro status o motivo antigo é apagado.
+ */
+export async function atualizarStatusDoacao(
+  id: string,
+  status: StatusDoacao,
+  motivoRecusa?: string
+): Promise<void> {
+  const motivo = motivoRecusa?.trim() ?? '';
+  if (status === 'recusada' && motivo.length < MOTIVO_MIN) {
+    throw new Error('Informe o motivo da recusa.');
+  }
+  await updateDoc(doc(db, COL, id), {
+    status,
+    motivoRecusa: status === 'recusada' ? motivo.slice(0, MOTIVO_MAX) : deleteField(),
+    atualizadoEm: serverTimestamp(),
+  });
 }

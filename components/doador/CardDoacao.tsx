@@ -38,6 +38,12 @@ export function CardDoacao({ doacao, index }: { doacao: Doacao; index: number })
           <StatusDoacaoChip status={doacao.status} />
         </View>
         <Text style={[styles.ajuda, { color: colors.textSecondary }]}>{info.ajuda}</Text>
+        {doacao.status === 'recusada' && !!doacao.motivoRecusa && (
+          <View style={[styles.motivo, { backgroundColor: colors.riscoAltoLight, borderColor: colors.riscoAlto }]}>
+            <Text style={[styles.motivoTitulo, { color: colors.riscoAltoDark }]}>Motivo informado pela ONG</Text>
+            <Text style={[styles.motivoTexto, { color: colors.riscoAltoDark }]}>{doacao.motivoRecusa}</Text>
+          </View>
+        )}
       </View>
     </FadeDown>
   );
@@ -58,4 +64,7 @@ const styles = StyleSheet.create({
   nome: { fontSize: 16, fontWeight: '700' },
   sub: { fontSize: 13, marginTop: 2 },
   ajuda: { fontSize: 13, lineHeight: 19 },
+  motivo: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
+  motivoTitulo: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
+  motivoTexto: { fontSize: 14, lineHeight: 20 },
 });

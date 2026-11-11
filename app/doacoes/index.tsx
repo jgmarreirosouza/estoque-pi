@@ -7,6 +7,7 @@ import {
   Platform,
   Linking,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,7 +16,7 @@ import { useTheme } from '../../theme';
 import { SkeletonLista } from '../../components/SkeletonCard';
 import { FadeDown, FadeIn } from '../../components/AnimEntrance';
 import { Doacao, StatusDoacao } from '../../services/tipos';
-import { subscribeToDoacoes, atualizarStatusDoacao } from '../../services/doacoesService';
+import { subscribeToDoacoes, atualizarStatusDoacao, MOTIVO_MIN, MOTIVO_MAX } from '../../services/doacoesService';
 import { mensagemErro } from '../../utils/erros';
 
 // ── Configuração de status e ações ───────────────────────────────────────────
@@ -85,9 +86,20 @@ function DoacaoCard({
   doacao: Doacao;
   index: number;
   ocupado: boolean;
-  onMudar: (id: string, destino: StatusDoacao) => void;
+  onMudar: (id: string, destino: StatusDoacao, motivo?: string) => void;
 }) {
   const { colors } = useTheme();
+  const [recusando, setRecusando] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [erroMotivo, setErroMotivo] = useState('');
+
+  function confirmarRecusa() {
+    if (motivo.trim().length < MOTIVO_MIN) {
+      setErroMotivo(`Explique o motivo (mínimo de ${MOTIVO_MIN} caracteres). O doador vai ler este texto.`);
+      return;
+    }
+    onMudar(doacao.id, 'recusada', motivo.trim());
+  }
 
   const cor =
     doacao.status === 'pendente' ? { fundo: colors.riscoAtencaoLight, texto: colors.riscoAtencaoDark, borda: colors.riscoAtencao }
@@ -142,6 +154,9 @@ function DoacaoCard({
           Enviada em {formatarDataHora(doacao.criadoEm)}
         </Text>
 
+        {doacao.status === 'recusada' && !!doacao.motivoRecusa && (
+          <Text style={[styles.dica, { color: colors.riscoAltoDark }]}>Motivo informado: {doacao.motivoRecusa}</Text>
+        )}
         {doacao.status === 'aprovada' && (
           <Text style={[styles.dica, { color: colors.primaryDark }]}>
             Combine a entrega com o doador e marque como recebida quando o item chegar.
@@ -151,6 +166,48 @@ function DoacaoCard({
           <Text style={[styles.dica, { color: colors.riscoSeguroDark }]}>
             Doação concluída. Lembre-se de registrar a entrada no estoque.
           </Text>
+        )}
+
+        {/* Recusa: o motivo é obrigatório e aparece para o doador */}
+        {recusando && (
+          <View style={[styles.motivoBox, { borderColor: colors.riscoAlto, backgroundColor: colors.background }]}>
+            <Text style={[styles.motivoLabel, { color: colors.textPrimary }]}>Motivo da recusa (obrigatório)</Text>
+            <TextInput
+              style={[styles.motivoInput, { color: colors.textPrimary, borderColor: erroMotivo ? colors.riscoAlto : colors.border, backgroundColor: colors.surface }]}
+              value={motivo}
+              onChangeText={(t) => { setMotivo(t.slice(0, MOTIVO_MAX)); if (erroMotivo) setErroMotivo(''); }}
+              placeholder="Ex.: já temos bastante desse item no momento"
+              placeholderTextColor={colors.textDisabled}
+              multiline
+              numberOfLines={3}
+              maxLength={MOTIVO_MAX}
+              autoFocus
+            />
+            <Text style={[styles.motivoContador, { color: colors.textDisabled }]}>{motivo.length}/{MOTIVO_MAX}</Text>
+            {erroMotivo.length > 0 && (
+              <Text style={[styles.motivoErro, { color: colors.riscoAltoDark }]}>{erroMotivo}</Text>
+            )}
+            <View style={styles.acoesRow}>
+              <TouchableOpacity
+                style={[styles.btnPrimario, { backgroundColor: colors.riscoAlto }]}
+                onPress={confirmarRecusa}
+                disabled={ocupado}
+                activeOpacity={0.85}
+              >
+                {ocupado
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text style={styles.btnPrimarioTexto}>Confirmar recusa</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnSecundario, { borderColor: colors.border }]}
+                onPress={() => { setRecusando(false); setMotivo(''); setErroMotivo(''); }}
+                disabled={ocupado}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.btnSecundarioTexto, { color: colors.textSecondary }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
         {/* Ações */}
@@ -176,7 +233,7 @@ function DoacaoCard({
             </TouchableOpacity>
           )}
 
-          {ACOES[doacao.status].map((a) => {
+          {ACOES[doacao.status].filter((a) => !(recusando && a.destino === 'recusada')).map((a) => {
             if (a.tipo === 'link') {
               return (
                 <TouchableOpacity
@@ -197,7 +254,7 @@ function DoacaoCard({
                 style={primaria
                   ? [styles.btnPrimario, { backgroundColor: ocupado ? colors.surfaceSecondary : colors.primary }]
                   : [styles.btnSecundario, { borderColor: colors.border }]}
-                onPress={() => onMudar(doacao.id, a.destino)}
+                onPress={() => (a.destino === 'recusada' ? setRecusando(true) : onMudar(doacao.id, a.destino))}
                 disabled={ocupado}
                 activeOpacity={0.8}
               >
@@ -257,11 +314,11 @@ export default function DoacoesScreen() {
 
   const visiveis = useMemo(() => doacoes.filter((d) => d.status === filtro), [doacoes, filtro]);
 
-  async function handleMudar(id: string, destino: StatusDoacao) {
+  async function handleMudar(id: string, destino: StatusDoacao, motivo?: string) {
     setAtualizandoId(id);
     setErroAcao('');
     try {
-      await atualizarStatusDoacao(id, destino);
+      await atualizarStatusDoacao(id, destino, motivo);
     } catch (e) {
       setErroAcao(mensagemErro(e, 'Não foi possível atualizar a sugestão. Tente novamente.'));
     } finally {
@@ -414,6 +471,11 @@ const styles = StyleSheet.create({
   btnPrimarioTexto: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   btnSecundario:    { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, borderWidth: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   btnSecundarioTexto: { fontSize: 14, fontWeight: '600' },
+  motivoBox:    { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 14, gap: 6 },
+  motivoLabel:  { fontSize: 14, fontWeight: '700' },
+  motivoInput:  { borderWidth: 1, borderRadius: 10, padding: 10, minHeight: 76, fontSize: 15, textAlignVertical: 'top' },
+  motivoContador: { fontSize: 12, textAlign: 'right' },
+  motivoErro:   { fontSize: 13, fontWeight: '600' },
   btnLink:      { paddingHorizontal: 6, paddingVertical: 10 },
   btnLinkTexto: { fontSize: 13, textDecorationLine: 'underline' },
 

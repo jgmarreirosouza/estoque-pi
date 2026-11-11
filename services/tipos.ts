@@ -67,5 +67,6 @@ export interface Doacao {
   doadorContato: string; // telefone ou e-mail
   observacao?: string;
   status: StatusDoacao;
+  motivoRecusa?: string; // preenchido pela equipe ao recusar (obrigatório nesse caso)
   criadoEm: string;      // ISO 8601 completo
 }
