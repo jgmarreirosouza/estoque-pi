@@ -5,7 +5,7 @@ import { StatusDoacao } from '../../services/tipos';
 const TEXTO: Record<StatusDoacao, { label: string; ajuda: string }> = {
   pendente: { label: 'Pendente', ajuda: 'A equipe da ONG ainda vai analisar sua sugestão.' },
   aprovada: { label: 'Aprovada', ajuda: 'Aprovada! A equipe vai combinar a entrega com você.' },
-  recebida: { label: 'Recebida', ajuda: 'Recebemos sua doação. Muito obrigado! 💙' },
+  recebida: { label: 'Entregue', ajuda: 'Doação entregue. Muito obrigado! 💙' },
   recusada: { label: 'Recusada', ajuda: 'A ONG não pôde aceitar esta sugestão. Obrigado por oferecer!' },
 };
 

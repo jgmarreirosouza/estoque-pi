@@ -41,7 +41,7 @@ export function AbaMinhasDoacoes({ uid, colunas, onVerNecessidades }: Props) {
     return () => { unsub(); clearTimeout(timer); };
   }, [uid]);
 
-  const recebidas = doacoes.filter((d) => d.status === 'recebida').length;
+  const entregues = doacoes.filter((d) => d.status === 'recebida').length;
   const emAnalise = doacoes.filter((d) => d.status === 'pendente' || d.status === 'aprovada').length;
   const hoje = doacoes.filter((d) => d.id.startsWith(prefixoDeHoje(uid))).length;
   const restantes = Math.max(0, LIMITE_DIARIO - hoje);
@@ -54,8 +54,8 @@ export function AbaMinhasDoacoes({ uid, colunas, onVerNecessidades }: Props) {
       {!carregando && !erro && doacoes.length > 0 && (
         <View style={styles.resumo}>
           <View style={[styles.resumoCard, { backgroundColor: colors.riscoSeguroLight }]}>
-            <Text style={[styles.resumoNum, { color: colors.riscoSeguroDark }]}>{recebidas}</Text>
-            <Text style={[styles.resumoLabel, { color: colors.riscoSeguroDark }]}>recebidas</Text>
+            <Text style={[styles.resumoNum, { color: colors.riscoSeguroDark }]}>{entregues}</Text>
+            <Text style={[styles.resumoLabel, { color: colors.riscoSeguroDark }]}>entregues</Text>
           </View>
           <View style={[styles.resumoCard, { backgroundColor: colors.riscoAtencaoLight }]}>
             <Text style={[styles.resumoNum, { color: colors.riscoAtencaoDark }]}>{emAnalise}</Text>
@@ -151,12 +151,18 @@ export function AbaMinhasDoacoes({ uid, colunas, onVerNecessidades }: Props) {
         <FadeIn duration={300} style={[styles.vazio, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.vazioEmoji}>{filtroAtual.emoji}</Text>
           <Text style={[styles.vazioTitulo, { color: colors.textPrimary }]}>
-            {filtro === 'concluidas' ? 'Nenhuma doação concluída ainda' : 'Nenhuma doação recusada'}
+            {filtro === 'entregues'
+              ? 'Nenhuma doação entregue ainda'
+              : filtro === 'andamento'
+                ? 'Nenhuma doação em andamento'
+                : 'Nenhuma doação recusada'}
           </Text>
           <Text style={[styles.vazioSub, { color: colors.textSecondary }]}>
-            {filtro === 'concluidas'
+            {filtro === 'entregues'
               ? 'Quando a ONG receber um item, a doação aparece aqui.'
-              : 'Nenhuma das suas sugestões foi recusada pela ONG.'}
+              : filtro === 'andamento'
+                ? 'Sugestões pendentes ou aprovadas aparecem aqui.'
+                : 'Nenhuma das suas sugestões foi recusada pela ONG.'}
           </Text>
           <TouchableOpacity
             style={[styles.botao, { backgroundColor: colors.primary }]}

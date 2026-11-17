@@ -10,6 +10,7 @@ import { subscribeNecessidadesPublicas } from '../../services/necessidadesPublic
 import { AbaNecessidades } from '../../components/doador/AbaNecessidades';
 import { AbaMinhasDoacoes } from '../../components/doador/AbaMinhasDoacoes';
 import { AbaConfiguracoes } from '../../components/doador/AbaConfiguracoes';
+import { CabecalhoApp, BotaoEngrenagem } from '../../components/CabecalhoApp';
 
 type Aba = 'necessidades' | 'doacoes' | 'config';
 
@@ -51,36 +52,26 @@ export default function DoadorScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      {/* Cabeçalho */}
-      <View style={[styles.cabecalho, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={[styles.cabecalhoInterno, { maxWidth: larguraMax + 40 }]}>
-          <View style={[styles.logo, { backgroundColor: colors.primaryLight }]}>
-            <Text style={styles.logoEmoji}>🏠</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.titulo, { color: colors.textPrimary }]} numberOfLines={1}>Casa da Criança</Text>
-            <Text style={[styles.subtitulo, { color: colors.textSecondary }]} numberOfLines={1}>
-              Itapira/SP · Como você pode ajudar
-            </Text>
-          </View>
-          {logado ? (
+      {/* Cabeçalho (mesmo componente do painel da ONG) */}
+      <CabecalhoApp
+        titulo="Casa da Criança"
+        subtitulo="Itapira/SP · Como você pode ajudar"
+        larguraMax={larguraMax}
+        abas={abasVisiveis}
+        abaAtiva={abaAtual === 'config' ? undefined : abaAtual}
+        onSelecionar={(id) => setAba(id as Aba)}
+        direita={
+          logado ? (
             <>
               {papel === 'equipe' && (
                 <TouchableOpacity onPress={() => router.replace('/')} activeOpacity={0.8}>
                   <Text style={[styles.link, { color: colors.primary }]}>Painel da ONG</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={[
-                  styles.engrenagem,
-                  { backgroundColor: abaAtual === 'config' ? colors.primaryLight : colors.surfaceSecondary },
-                ]}
+              <BotaoEngrenagem
+                ativo={abaAtual === 'config'}
                 onPress={() => setAba(abaAtual === 'config' ? ABA_INICIAL : 'config')}
-                activeOpacity={0.75}
-                accessibilityLabel="Configurações"
-              >
-                <Text style={styles.engrenagemIcone}>⚙️</Text>
-              </TouchableOpacity>
+              />
             </>
           ) : (
             <TouchableOpacity
@@ -91,36 +82,9 @@ export default function DoadorScreen() {
             >
               <Text style={styles.entrarTexto}>{faixa === 'celular' ? 'Entrar' : 'Entrar ou criar conta'}</Text>
             </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Abas */}
-        {abasVisiveis.length > 1 && (
-          <View style={[styles.abas, { maxWidth: larguraMax + 40 }]}>
-            {abasVisiveis.map((a) => {
-              const ativa = abaAtual === a.id;
-              return (
-                <TouchableOpacity
-                  key={a.id}
-                  style={[styles.aba, ativa && { borderBottomColor: colors.primary }]}
-                  onPress={() => setAba(a.id)}
-                  activeOpacity={0.7}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: ativa }}
-                >
-                  <Text style={styles.abaEmoji}>{a.emoji}</Text>
-                  <Text
-                    style={[styles.abaTexto, { color: ativa ? colors.primary : colors.textSecondary }]}
-                    numberOfLines={1}
-                  >
-                    {a.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-      </View>
+          )
+        }
+      />
 
       {/* Conteúdo */}
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -144,25 +108,10 @@ export default function DoadorScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  cabecalho: { width: '100%', borderBottomWidth: 1, alignItems: 'center' },
-  cabecalhoInterno: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14 },
-  logo: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  logoEmoji: { fontSize: 24 },
-  titulo: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  subtitulo: { fontSize: 12 },
   link: { fontSize: 14, fontWeight: '700' },
-  engrenagem: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  engrenagemIcone: { fontSize: 20 },
   entrar: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   entrarTexto: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
-  abas: { width: '100%', flexDirection: 'row', paddingHorizontal: 20 },
-  aba: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent',
-  },
-  abaEmoji: { fontSize: 15 },
-  abaTexto: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
 
   scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 48, alignItems: 'center' },
   coluna: { width: '100%' },

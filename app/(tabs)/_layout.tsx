@@ -30,7 +30,7 @@ export default function TabLayout() {
         tabBarLabelPosition: noTopo ? 'beside-icon' : undefined,
         // Conteúdo centralizado, com largura máxima, abaixo da barra de abas.
         sceneStyle: noTopo
-          ? { width: '100%', maxWidth: 1280, alignSelf: 'center', backgroundColor: colors.background }
+          ? { width: '100%', maxWidth: 1200, alignSelf: 'center', backgroundColor: colors.background }
           : undefined,
         tabBarStyle: noTopo
           ? {

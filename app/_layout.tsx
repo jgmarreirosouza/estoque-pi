@@ -1,4 +1,5 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, Platform } from 'react-native';
@@ -133,9 +134,27 @@ function RootNavigator() {
     headerTintColor: colors.primary,
     headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' as const },
     ...(Platform.OS === 'web'
-      ? { headerLeft: () => <BotaoVoltar fallback={fallback} /> }
+      ? {
+          headerLeft: () => <BotaoVoltar fallback={fallback} />,
+          // Cabeçalho de ponta a ponta; só o conteúdo fica numa coluna centralizada.
+          contentStyle: { backgroundColor: colors.background, width: '100%', maxWidth: 1200, alignSelf: 'center' } as const,
+        }
       : {}),
   });
+
+  // O fundo padrão do React Navigation é claro: sem isto aparecem faixas brancas
+  // nas laterais quando o conteúdo é centralizado em telas largas.
+  const temaNav = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      background: colors.background,
+      card: colors.surface,
+      border: colors.border,
+      primary: colors.primary,
+      text: colors.textPrimary,
+    },
+  };
 
   if (loading) {
     return (
@@ -145,20 +164,22 @@ function RootNavigator() {
     );
   }
 
-  // Na web, em telas largas, o painel da ONG fica numa coluna centralizada.
-  // A área do doador cuida da própria largura (o cabeçalho ocupa a tela toda).
+  // Na web, em telas largas, login e verificação ficam numa coluna centralizada.
+  // As demais telas cuidam da própria largura: o cabeçalho ocupa a tela toda e o
+  // conteúdo é centralizado (sceneStyle das abas e contentStyle das telas internas).
   const colunaWeb =
-    Platform.OS === 'web' && segments[0] !== 'doador'
+    Platform.OS === 'web' && (segments[0] === 'login' || segments[0] === 'verificar-email')
       ? ({ width: '100%', maxWidth: 1200, alignSelf: 'center' } as const)
       : null;
 
   return (
+    <NavThemeProvider value={temaNav}>
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <View style={[{ flex: 1 }, colunaWeb]}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <AuthGate />
       <ReclassificadorOffline />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="login" />
         <Stack.Screen name="verificar-email" />
         <Stack.Screen name="(tabs)" />
@@ -196,6 +217,7 @@ function RootNavigator() {
       <OfflineBar />
     </View>
     </View>
+    </NavThemeProvider>
   );
 }
 
