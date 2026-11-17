@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform, Image } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Alert, Platform, Image } from 'react-native';
 import { useState } from 'react';
 import { useTheme } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { redefinirSenha, sairDaConta } from '../../services/authService';
+import { redefinirSenha, sairDaConta, nomeDaConta, NOME_MIN, NOME_MAX } from '../../services/authService';
 
 type Modo = 'auto' | 'light' | 'dark';
 
@@ -72,7 +72,10 @@ function Item({
 
 export function AbaConfiguracoes() {
   const { colors, mode, setMode } = useTheme();
-  const { user } = useAuth();
+  const { user, atualizarNome } = useAuth();
+  const [editandoNome, setEditandoNome] = useState(false);
+  const [novoNome, setNovoNome] = useState('');
+  const [salvandoNome, setSalvandoNome] = useState(false);
   const [aviso, setAviso] = useState('');
   const [erro, setErro] = useState('');
   const [mostraOng, setMostraOng] = useState(false);
@@ -83,6 +86,31 @@ export function AbaConfiguracoes() {
   const inicial = nomeExibido.trim().charAt(0).toUpperCase() || '💙';
   const temSenha = user?.providerData.some((p) => p.providerId === 'password') ?? false;
   const isGoogle = user?.providerData.some((p) => p.providerId === 'google.com') ?? false;
+
+  function abrirEdicaoNome() {
+    setAviso('');
+    setErro('');
+    setNovoNome(nomeDaConta(user));
+    setEditandoNome(true);
+  }
+
+  async function salvarNome() {
+    if (novoNome.trim().length < NOME_MIN) {
+      setErro('Informe um nome com pelo menos 2 letras.');
+      return;
+    }
+    try {
+      setSalvandoNome(true);
+      setErro('');
+      await atualizarNome(novoNome);
+      setEditandoNome(false);
+      setAviso('Nome atualizado. Ele será usado nas próximas doações.');
+    } catch {
+      setErro('Não foi possível salvar o nome agora. Tente novamente.');
+    } finally {
+      setSalvandoNome(false);
+    }
+  }
 
   async function alterarSenha() {
     setAviso('');
@@ -159,6 +187,45 @@ export function AbaConfiguracoes() {
       {/* Conta e segurança */}
       <SecaoHeader titulo="CONTA E SEGURANÇA" emoji="🔒" />
       <Cartao>
+        {editandoNome ? (
+          <View style={styles.seletorWrap}>
+            <Text style={[styles.itemLabel, { color: colors.textPrimary, marginBottom: 10 }]}>Seu nome</Text>
+            <TextInput
+              style={[styles.nomeInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.background }]}
+              value={novoNome}
+              onChangeText={setNovoNome}
+              placeholder="Como podemos te chamar?"
+              placeholderTextColor={colors.textDisabled}
+              autoCapitalize="words"
+              maxLength={NOME_MAX}
+              autoFocus
+            />
+            <View style={styles.nomeAcoes}>
+              <TouchableOpacity
+                style={[styles.nomeBotao, { backgroundColor: colors.primary, opacity: salvandoNome ? 0.6 : 1 }]}
+                onPress={salvarNome}
+                disabled={salvandoNome}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.nomeBotaoTexto}>{salvandoNome ? 'Salvando…' : 'Salvar'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.nomeBotao, { backgroundColor: colors.surfaceSecondary }]}
+                onPress={() => { setEditandoNome(false); setErro(''); }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.nomeBotaoTexto, { color: colors.textSecondary }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <Item
+            label="Seu nome"
+            descricao="Usado em todas as suas doações"
+            valorAtual={nomeDaConta(user) || 'Não informado'}
+            onPress={abrirEdicaoNome}
+          />
+        )}
         {temSenha && (
           <Item
             label="Alterar senha"
@@ -241,6 +308,11 @@ const styles = StyleSheet.create({
   itemValor: { fontSize: 15 },
   itemSeta: { fontSize: 22, fontWeight: '300' },
   msg: { fontSize: 13, lineHeight: 19, paddingHorizontal: 18, paddingBottom: 14 },
+
+  nomeInput: { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  nomeAcoes: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  nomeBotao: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12 },
+  nomeBotaoTexto: { fontSize: 15, fontWeight: '700', color: '#FFF' },
 
   seletorWrap: { paddingHorizontal: 18, paddingVertical: 16 },
   temaOpcoes: { flexDirection: 'row', gap: 10 },

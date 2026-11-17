@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { onAuthStateChanged, reload, signOut, User } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { Papel, papelDoUsuario } from '../services/papeis';
+import { atualizarNomeDaConta } from '../services/authService';
 
 interface AuthContextData {
   user: User | null;
@@ -12,6 +13,8 @@ interface AuthContextData {
   verificado: boolean;
   /** Recarrega o usuário para saber se o e-mail acabou de ser confirmado. */
   recarregar: () => Promise<void>;
+  /** Altera o nome associado à conta e atualiza as telas. */
+  atualizarNome: (nome: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextData>({
@@ -20,6 +23,7 @@ const AuthContext = createContext<AuthContextData>({
   papel: null,
   verificado: false,
   recarregar: async () => {},
+  atualizarNome: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -49,11 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setVersao((v) => v + 1);
   }, []);
 
+  const atualizarNome = useCallback(async (nome: string) => {
+    await atualizarNomeDaConta(nome);
+    if (auth.currentUser) setUser(auth.currentUser);
+    setVersao((v) => v + 1);
+  }, []);
+
   const verificado = !!user && user.emailVerified;
   const papel = papelDoUsuario(user);
 
   return (
-    <AuthContext.Provider value={{ user, loading, papel, verificado, recarregar }}>
+    <AuthContext.Provider value={{ user, loading, papel, verificado, recarregar, atualizarNome }}>
       {children}
     </AuthContext.Provider>
   );

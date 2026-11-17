@@ -8,6 +8,7 @@ import Constants from 'expo-constants';
 import { ThemeProvider, useTheme } from '../theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { OfflineBar } from '../components/OfflineBar';
+import { BotaoVoltar } from '../components/BotaoVoltar';
 import { getLotesSemRisco, atualizarRiscoLote } from '../services/lotesService';
 import { getProdutoById } from '../services/produtosService';
 import { classificarRiscoML } from '../services/mlService';
@@ -123,6 +124,19 @@ function RootNavigator() {
   const { loading } = useAuth();
   const segments = useSegments();
 
+  // Opções comuns das telas internas. Na web o botão de voltar é desenhado
+  // por BotaoVoltar (o ícone padrão some em alguns navegadores).
+  const cabecalho = (title: string, fallback = '/') => ({
+    headerShown: true,
+    title,
+    headerStyle: { backgroundColor: colors.surface },
+    headerTintColor: colors.primary,
+    headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' as const },
+    ...(Platform.OS === 'web'
+      ? { headerLeft: () => <BotaoVoltar fallback={fallback} /> }
+      : {}),
+  });
+
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
@@ -150,75 +164,33 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="produto/[id]"
-          options={{
-            headerShown: true,
-            title: 'Detalhes do Produto',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Detalhes do Produto')}
         />
         <Stack.Screen
           name="entrada/index"
-          options={{
-            headerShown: true,
-            title: 'Registrar Entrada',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Registrar Entrada')}
         />
         <Stack.Screen
           name="cadastro/index"
-          options={{
-            headerShown: true,
-            title: 'Novo Produto',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Novo Produto')}
         />
         <Stack.Screen
           name="baixa/index"
-          options={{
-            headerShown: true,
-            title: 'Registrar Saída',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Registrar Saída')}
         />
         <Stack.Screen
           name="necessidades/index"
-          options={{
-            headerShown: true,
-            title: 'Lista de Necessidades',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Lista de Necessidades')}
         />
         <Stack.Screen
           name="doacoes/index"
-          options={{
-            headerShown: true,
-            title: 'Sugestões de Doação',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Sugestões de Doação')}
         />
         {/* Área do doador (pública) */}
         <Stack.Screen name="doador/index" />
         <Stack.Screen
           name="doador/doar"
-          options={{
-            headerShown: true,
-            title: 'Sugerir doação',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
-          }}
+          options={cabecalho('Sugerir doação', '/doador')}
         />
       </Stack>
       <OfflineBar />

@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import Constants from 'expo-constants';
 import { useTheme } from '../theme';
-import { loginComGoogle, loginComEmail, criarContaComEmail, redefinirSenha } from '../services/authService';
+import { loginComGoogle, loginComGoogleWeb, loginComEmail, criarContaComEmail, redefinirSenha, NOME_MIN, NOME_MAX } from '../services/authService';
 
 // O @react-native-google-signin é um módulo nativo — não funciona no Expo Go,
 // só em builds nativos (APK/EAS Build). Carregamos por require dinâmico
@@ -24,7 +24,7 @@ const isExpoGo =
   (Constants as any).appOwnership === 'expo';
 
 let GoogleSignin: any = null;
-if (!isExpoGo) {
+if (!isExpoGo && Platform.OS !== 'web') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
   GoogleSignin.configure({
@@ -37,6 +37,7 @@ type Modo = 'inicial' | 'email' | 'criar' | 'resetSenha';
 export default function LoginScreen() {
   const { colors } = useTheme();
   const [modo, setModo] = useState<Modo>('inicial');
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
@@ -45,6 +46,29 @@ export default function LoginScreen() {
   const [sucesso, setSucesso] = useState('');
 
   async function handleLoginGoogle() {
+    if (Platform.OS === 'web') {
+      try {
+        setCarregando(true);
+        setErro('');
+        await loginComGoogleWeb();
+      } catch (e: any) {
+        const codigo = e?.code ?? '';
+        if (codigo === 'auth/popup-closed-by-user' || codigo === 'auth/cancelled-popup-request') {
+          // usuário fechou a janela: não é erro
+        } else if (codigo === 'auth/popup-blocked') {
+          setErro('O navegador bloqueou a janela do Google. Libere pop-ups para este site e tente de novo.');
+        } else if (codigo === 'auth/operation-not-allowed') {
+          setErro('O login com Google não está ativado no Firebase deste projeto.');
+        } else if (codigo === 'auth/unauthorized-domain') {
+          setErro('Este endereço não está autorizado no Firebase (domínios autorizados).');
+        } else {
+          setErro('Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.');
+        }
+      } finally {
+        setCarregando(false);
+      }
+      return;
+    }
     if (!GoogleSignin) {
       setErro('Login com Google só funciona no APK instalado (não no Expo Go). Use e-mail e senha.');
       return;
@@ -81,6 +105,10 @@ export default function LoginScreen() {
   }
 
   async function handleCriarConta() {
+    if (nome.trim().length < NOME_MIN) {
+      setErro('Informe seu nome (mínimo 2 letras).');
+      return;
+    }
     if (!email.trim() || !senha) {
       setErro('Preencha o e-mail e a senha.');
       return;
@@ -96,7 +124,7 @@ export default function LoginScreen() {
     try {
       setCarregando(true);
       setErro('');
-      await criarContaComEmail(email.trim(), senha);
+      await criarContaComEmail(email.trim(), senha, nome);
     } catch {
       setErro('Não foi possível criar a conta. O e-mail já pode estar em uso.');
     } finally {
@@ -284,7 +312,21 @@ export default function LoginScreen() {
           {/* ── Formulário: criar conta ── */}
           {modo === 'criar' && (
             <View style={[styles.emailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>E-mail</Text>
+              <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>Seu nome</Text>
+              <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                <TextInput
+                  style={[styles.input, { color: colors.textPrimary }]}
+                  placeholder="Como podemos te chamar?"
+                  placeholderTextColor={colors.textDisabled}
+                  value={nome}
+                  onChangeText={setNome}
+                  autoCapitalize="words"
+                  maxLength={NOME_MAX}
+                  autoFocus
+                />
+              </View>
+
+              <Text style={[styles.campoLabel, { color: colors.textSecondary, marginTop: 12 }]}>E-mail</Text>
               <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
                 <TextInput
                   style={[styles.input, { color: colors.textPrimary }]}
@@ -294,7 +336,6 @@ export default function LoginScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  autoFocus
                 />
               </View>
 

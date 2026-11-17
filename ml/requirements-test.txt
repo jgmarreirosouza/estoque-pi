@@ -1,0 +1,11 @@
+# Dependências para rodar os testes da API de ML (Pytest).
+# Instalar:  pip install -r requirements-test.txt
+fastapi
+httpx
+pytest
+pytest-cov
+scikit-learn
+numpy
+pandas
+joblib
+pydantic

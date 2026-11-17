@@ -16,6 +16,7 @@ import { useTheme } from '../../theme';
 import { ScaleIn, FadeDown } from '../../components/AnimEntrance';
 import { criarDoacao, subscribeMinhasDoacoes, prefixoDeHoje, LimiteDiarioError, LIMITE_DIARIO } from '../../services/doacoesService';
 import { useAuth } from '../../contexts/AuthContext';
+import { nomeDaConta, NOME_MIN, NOME_MAX } from '../../services/authService';
 import { mensagemErro } from '../../utils/erros';
 
 const EMOJI_PADRAO = '🎁';
@@ -138,7 +139,7 @@ function ExigeConta({ semConta }: { semConta: boolean }) {
 export default function DoarScreen() {
   const { colors } = useTheme();
   const params = useLocalSearchParams<{ produtoId?: string; nome?: string; emoji?: string }>();
-  const { user, verificado } = useAuth();
+  const { user, verificado, atualizarNome } = useAuth();
 
   // Item vindo da lista de necessidades (pode ser trocado por um item livre).
   const [itemDaLista, setItemDaLista] = useState(!!params.nome);
@@ -156,10 +157,14 @@ export default function DoarScreen() {
   const [erro, setErro] = useState('');
   const [enviado, setEnviado] = useState(false);
 
-  // Preenche nome e contato com os dados da conta (o doador pode alterar).
+  // O nome vem da conta (fixo para todas as doações). Só contas antigas, sem nome,
+  // informam aqui uma vez; o nome é salvo na conta ao enviar.
+  const nomeConta = nomeDaConta(user);
+  const semNome = nomeConta.length < NOME_MIN;
+
+  // Preenche o e-mail de contato com o da conta (o doador pode alterar).
   useEffect(() => {
     if (!user) return;
-    setNome((n) => n || user.displayName || '');
     setEmail((e) => e || user.email || '');
   }, [user]);
 
@@ -180,7 +185,8 @@ export default function DoarScreen() {
 
   const itemOk = nomeItem.length >= 2;
   const qtdOk = Number.isInteger(qtd) && qtd >= 1 && qtd <= 9999;
-  const nomeOk = nome.trim().length >= 2;
+  const nomeFinal = semNome ? nome.trim().replace(/\s+/g, ' ') : nomeConta;
+  const nomeOk = nomeFinal.length >= NOME_MIN;
   const contatoOk = forma === 'email' ? emailValido(email) : celularValido(telefone);
   const contato = forma === 'email' ? email.trim() : telefone;
   const formOk = itemOk && qtdOk && nomeOk && contatoOk;
@@ -196,13 +202,14 @@ export default function DoarScreen() {
 
     setEnviando(true);
     try {
+      if (semNome) await atualizarNome(nomeFinal);
       await comTimeout(
         criarDoacao(user.uid, {
           produtoId: itemDaLista ? params.produtoId : undefined,
           nomeItem,
           emoji: itemDaLista ? (params.emoji ?? EMOJI_PADRAO) : EMOJI_PADRAO,
           quantidade: qtd,
-          doadorNome: nome,
+          doadorNome: nomeFinal,
           doadorContato: contato,
           observacao,
         }),
@@ -335,20 +342,40 @@ export default function DoarScreen() {
 
             {/* Doador */}
             <View style={styles.campoWrap}>
-              <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>Seu nome *</Text>
-              <View style={inputWrap(tentou && !nomeOk)}>
-                <TextInput
-                  style={[styles.input, { color: colors.textPrimary }]}
-                  placeholder="Como podemos te chamar?"
-                  placeholderTextColor={colors.textDisabled}
-                  value={nome}
-                  onChangeText={setNome}
-                  autoCapitalize="words"
-                  maxLength={80}
-                />
-              </View>
-              {tentou && !nomeOk && (
-                <Text style={[styles.erroCampo, { color: colors.riscoAlto }]}>Informe seu nome.</Text>
+              {semNome ? (
+                <>
+                  <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>Seu nome *</Text>
+                  <View style={inputWrap(tentou && !nomeOk)}>
+                    <TextInput
+                      style={[styles.input, { color: colors.textPrimary }]}
+                      placeholder="Como podemos te chamar?"
+                      placeholderTextColor={colors.textDisabled}
+                      value={nome}
+                      onChangeText={setNome}
+                      autoCapitalize="words"
+                      maxLength={NOME_MAX}
+                    />
+                  </View>
+                  {tentou && !nomeOk ? (
+                    <Text style={[styles.erroCampo, { color: colors.riscoAlto }]}>Informe seu nome.</Text>
+                  ) : (
+                    <Text style={[styles.erroCampo, { color: colors.textSecondary }]}>
+                      Ele ficará salvo na sua conta e será usado em todas as suas doações.
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.campoLabel, { color: colors.textSecondary }]}>Doador</Text>
+                  <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
+                    <Text style={[styles.input, { color: colors.textPrimary, fontWeight: '600' }]} numberOfLines={1}>
+                      {nomeConta}
+                    </Text>
+                  </View>
+                  <Text style={[styles.erroCampo, { color: colors.textSecondary }]}>
+                    Nome da sua conta. Para alterar, use Configurações.
+                  </Text>
+                </>
               )}
             </View>
 
